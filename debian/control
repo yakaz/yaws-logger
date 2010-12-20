@@ -1,0 +1,16 @@
+Source: yaws-logger
+Section: devel
+Priority: optional
+Maintainer: Christopher Faulet <christopher@yakaz.com>
+Build-Depends: debhelper (>= 5.0.0), autotools-dev, yaws (>= 1.89.4),
+ erlang-dev (>= 1:13.b.1-3)
+Standards-Version: 3.8.4
+
+Package: yaws-logger
+Architecture: all
+Section: devel
+Priority: optional
+Depends: ${erlang:Depends}, syslogger (>= 1.0.0), yaws (>= 1.89.4)
+ yakaz-erlang-utils (>= 1.0.0)
+Description: XMPP bosh client for yaws
+ .

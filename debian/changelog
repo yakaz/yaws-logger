@@ -1,0 +1,5 @@
+yaws-logger (0.1.0-1) unstable; urgency=low
+
+  * Initial release.
+
+ -- Christopher Faulet <christopher@yakaz.com>  Thu, 16 Dec 2010 12:11:15 +0100

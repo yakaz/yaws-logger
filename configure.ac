@@ -1,0 +1,268 @@
+dnl ------------------------------------------------------------------
+dnl Autoconf initialization.
+dnl ------------------------------------------------------------------
+dnl $Id$
+
+AC_INIT([yaws_logger], [0.1.0], [team@yakaz.com])
+
+dnl Release date.
+APP_RELEASE_DATE=
+
+AC_CONFIG_SRCDIR([src/yaws_logger_app.erl])
+AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_AUX_DIR([ac-aux])
+
+AM_INIT_AUTOMAKE([foreign])
+
+AC_PREREQ([2.60])
+AC_REVISION([$Revision$])
+
+ECHO=echo
+COLORED_ECHO_INIT
+
+dnl ------------------------------------------------------------------
+dnl Internal functions for this configure script.
+dnl ------------------------------------------------------------------
+
+dnl EMKOPTS is used by Emakefile(s).
+append_to_EMKOPTS () {
+	if test -z "[$]EMKOPTS"; then
+		EMKOPTS="[$]1"
+	else
+		EMKOPTS="[$]{EMKOPTS% }, [$]1"
+	fi
+}
+
+dnl Expand shell variables to have a nice output in the final report.
+expand_var () {
+	local v=`eval echo '$'[$]1`
+	while test "`echo [$]v | grep [[$]] > /dev/null && echo nok`"; do
+		v=`eval echo [$]v`
+	done
+	echo [$]v
+}
+
+dnl ------------------------------------------------------------------
+dnl Versionning.
+dnl ------------------------------------------------------------------
+
+dnl Is this a final release?
+is_release=0
+if test "x${APP_RELEASE_DATE}" != "x"; then
+	is_release=1
+fi
+
+dnl Subversion revision.
+if test $is_release -eq 0; then
+	APP_SVNREV=`svnversion $srcdir | sed 's/^[[^:]]*://'`
+	which svnversion > /dev/null; \
+	if test $? -ne 0 -o "x$APP_SVNREV" = "xexported"; then
+		APP_SVNREV=`cat $srcdir/SVNREV`
+	else
+		echo $APP_SVNREV > $srcdir/SVNREV
+	fi
+	if test $APP_SVNREV; then
+		APP_DISTSUFFIX="-r$APP_SVNREV"
+	fi
+fi
+
+dnl ------------------------------------------------------------------
+dnl Options.
+dnl ------------------------------------------------------------------
+
+dnl Debugging option.
+if test $is_release -eq 0; then
+	default_enable_debug="yes"
+else
+	default_enable_debug="no"
+fi
+AC_ARG_ENABLE([debug],
+	AC_HELP_STRING([--enable-debug],
+	    [turn on debugging [[default=auto]]]),,
+	enable_debug=$default_enable_debug)
+if test "x${enable_debug}" = "xyes"; then
+	append_to_EMKOPTS "{d, debug}"
+fi
+
+AC_ARG_ENABLE([warnings],
+	AC_HELP_STRING([--enable-warnings],
+	    [treat warnings as errors [[default=yes]]]),,
+	enable_warnings=yes)
+if test "x${enable_warnings}" = "xyes"; then
+	append_to_EMKOPTS "warnings_as_errors"
+fi
+
+AC_ARG_ENABLE([export_all],
+	AC_HELP_STRING([--enable-export-all],
+	    [export all Erlang functions [[default=no]]]),,
+	enable_export_all=no)
+if test "x${enable_export_all}" = "xyes"; then
+	append_to_EMKOPTS "export_all"
+fi
+
+dnl Include debug symbols.
+append_to_EMKOPTS "debug_info"
+
+dnl Print any warnings.
+append_to_EMKOPTS "report_warnings"
+append_to_EMKOPTS "{warn_format, 1}"
+append_to_EMKOPTS "warn_export_vars"
+append_to_EMKOPTS "warn_shadow_vars"
+append_to_EMKOPTS "warn_unused_import"
+
+dnl ------------------------------------------------------------------
+dnl Erlang environment.
+dnl ------------------------------------------------------------------
+
+echo
+COLORED_ECHO([%BErlang environment%b])
+
+dnl Available flags.
+AC_ARG_WITH([erlang],
+	AC_HELP_STRING([--with-erlang=PREFIX],
+	    [prefix where build machine's Erlang is installed (optional)]),
+	with_erlang=${withval%/},
+	with_erlang="")
+
+AC_ARG_WITH([yaws],
+	AC_HELP_STRING([--with-yaws=PREFIX],
+	    [prefix where yaws is installed (optional)]),
+	with_yaws=${withval%/},
+	with_yaws="")
+
+dnl erl(1) is used to compile Erlang modules.
+if test "x${with_erlang}" = "x"; then
+	AC_ERLANG_PATH_ERL
+	AC_ERLANG_PATH_ERLC
+else
+	erl_path="${with_erlang}/bin"
+	AC_ERLANG_PATH_ERL(, [$erl_path$PATH_SEPARATOR$PATH])
+	AC_ERLANG_PATH_ERLC(, [$erl_path$PATH_SEPARATOR$PATH])
+fi
+
+if test "x${ERL}" = "x"; then
+	AC_MSG_ERROR([
+Erlang not found. Fill the ERL variable with erl(1) path or provide
+Erlang prefix with --with-erlang.])
+fi
+
+dnl escript(1) is used by the testsuite.
+AC_ARG_VAR([ESCRIPT], [Erlang/OTP interpreter command [autodetected]])
+
+if test "x${ESCRIPT}" = "x"; then
+	if test "x${with_erlang}" = "x"; then
+		AC_PATH_PROG([ESCRIPT], [escript],,)
+	else
+		erl_path="${with_erlang}/bin"
+		AC_PATH_PROG([ESCRIPT], [escript],,
+		    [$erl_path$PATH_SEPARATOR$PATH])
+	fi
+else
+	AC_MSG_CHECKING([for escript])
+	AC_MSG_RESULT([$ESCRIPT])
+fi
+
+if test "x${ESCRIPT}" = "x"; then
+	AC_MSG_WARN([
+escript(1) not found. Fill the ESCRIPT variable with escript(1) path if
+you want to use the testsuite.])
+fi
+
+dnl Declare ERL_LIBS as precious.
+AC_ARG_VAR([ERL_LIBS], [Erlang/OTP applications search path [none]])
+
+dnl Get Erlang $ROOT dir and lib dir.
+AC_ERLANG_SUBST_ROOT_DIR
+AC_ERLANG_SUBST_LIB_DIR
+
+dnl Get ERTS version.
+ERLANG_CHECK_ERTS
+ERLANG_CHECK_RELEASE
+
+dnl Erlang R13B04 (ERTS 5.7.5) is required.
+AX_COMPARE_VERSION([${ERLANG_ERTS_VER}], [ge], [5.7.5],
+    [is_erlang_r13b04="yes"],
+    [is_erlang_r13b04="no"])
+if test "x${is_erlang_r13b04}" = "xno"; then
+	AC_MSG_ERROR([
+Erlang R13B04 is required but only Erlang $ERLANG_RELEASE was found!])
+fi
+
+dnl yaws install directory.
+ERL_LIBS_save=$ERL_LIBS
+if test "x${with_yaws}" != "x"; then
+	ERL_LIBS="${with_yaws}:${ERL_LIBS}"
+fi
+export ERL_LIBS=$ERL_LIBS
+AC_ERLANG_CHECK_LIB([yaws],, [AC_MSG_ERROR([
+yaws not found.
+
+Provide yaws install path with --with-yaws.])])
+ERL_LIBS=$ERL_LIBS_save
+export ERL_LIBS=$ERL_LIBS
+
+dnl Determine directories for installation.
+if test "x${prefix}" = "xNONE"; then
+	dnl Inside Erlang lib directory.
+	ERLANG_INSTALL_LIB_DIR="${ERLANG_LIB_DIR}"
+else
+	dnl Under $prefix
+	ERLANG_INSTALL_LIB_DIR="${prefix}"
+fi
+
+AC_ERLANG_SUBST_INSTALL_LIB_DIR
+AC_ERLANG_SUBST_INSTALL_LIB_SUBDIR(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
+
+dnl ------------------------------------------------------------------
+dnl Finale substitutions.
+dnl ------------------------------------------------------------------
+
+AC_SUBST(EMKOPTS)
+
+AC_SUBST(APP_RELEASE_DATE)
+AC_SUBST(APP_DISTSUFFIX)
+
+exp_ERLANG_INSTALL_LIB_DIR_yaws_logger=`expand_var ERLANG_INSTALL_LIB_DIR_yaws_logger`
+AC_SUBST(exp_ERLANG_INSTALL_LIB_DIR_yaws_logger)
+
+dnl ------------------------------------------------------------------
+dnl Autoconf output.
+dnl ------------------------------------------------------------------
+
+echo
+AM_CONFIG_HEADER([config.h])
+AC_CONFIG_FILES([
+	src/Makefile
+	src/Emakefile.in
+	ebin/Makefile
+	ebin/yaws_logger.app.in
+	ebin/yaws_logger.appup
+	priv/Makefile
+	testsuite/Makefile
+	testsuite/etest
+	Makefile
+])
+AC_CONFIG_FILES([
+	testsuite/dialyzer
+], [chmod +x testsuite/dialyzer])
+AC_OUTPUT
+
+dnl --------------------------------------------------
+dnl Configuration report
+dnl --------------------------------------------------
+
+echo
+COLORED_ECHO([ %B== ${PACKAGE_NAME} ${PACKAGE_VERSION}${APP_DISTSUFFIX} ==%b])
+echo
+COLORED_ECHO([Configuration:])
+COLORED_ECHO([    Prefix:               ${prefix}])
+COLORED_ECHO([    Application dir.:     ${exp_ERLANG_INSTALL_LIB_DIR_yaws_logger}])
+echo
+COLORED_ECHO([    Erlang emulator:      ${ERL}])
+COLORED_ECHO([    Erlang compiler:      ${ERLC}])
+COLORED_ECHO([    Erlang interpreter:   ${ESCRIPT}])
+echo
+COLORED_ECHO([    Debug:                ${enable_debug}])
+COLORED_ECHO([    Warnings as errors:   ${enable_warnings}])
+COLORED_ECHO([    Export all:           ${enable_export_all}])
+echo
