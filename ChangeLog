@@ -1,3 +1,8 @@
+2010-12-22  Christopher Faulet  <christopher@yakaz.com>
+
+	* src/yaws_logger.erl: Update API to follow specs of the behaviour
+	yaws_alog.
+
 2010-12-20  Christopher Faulet  <christopher@yakaz.com>
 
 	* Import the project.

@@ -11,57 +11,56 @@
 
 %% API
 -export([
-         open_alog/2,
-         close_alog/1,
-         wrap_alog/2,
-         write_alog/2
+         open_alog/3,
+         close_alog/3,
+         wrap_alog/4,
+         write_alog/4
         ]).
 
 
--type access_data() :: {access, ip_address() | string(), #http_request{},
-                        #headers{}, #outh{}, non_neg_integer()}.
+-type access_data() :: {ip_address() | string(), #http_request{}, #headers{},
+                        #outh{}, non_neg_integer()}.
 
--type auth_data() :: {auth, ip_address() | string(), string(), string()}.
+-type auth_data() :: {ip_address() | string(), string(), string()}.
 
 %% ===================================================================
 %% Public API.
 %% ===================================================================
--spec open_alog(#sconf{}, {auth | access, string()}) -> any().
+-spec open_alog(string(), auth | access, string()) -> {true, string()}.
 
-open_alog(SConf, {Type, _Dir}) ->
-    Ident    = ident(SConf, Type),
+open_alog(ServerName, Type, _Dir) ->
+    Ident    = ident(ServerName, Type),
     Facility = yaws_logger_app:get_param(syslog_facility),
     syslog:add(Ident, Ident, Facility, info, []),
     io:format("~p added into yaws_logger", [Ident]),
     {true, Ident}.
 
 
--spec close_alog(any()) -> ok.
+-spec close_alog(any(), auth | access, string()) -> ok.
 
-close_alog(Ident) ->
+close_alog(_ServerName, _Type, Ident) ->
     syslog:remove(Ident),
     ok.
 
 
--spec wrap_alog(any(), non_neg_integer()) -> ok.
+-spec wrap_alog(string(), auth | access, string(), non_neg_integer()) -> ok.
 
-wrap_alog(_Data, _LogWrapSize) ->
+wrap_alog(_, _, _, _) ->
     ok.
 
 
--spec write_alog(#sconf{}, access_data() | auth_data()) -> ok.
+-spec write_alog(string(), auth | access, string(),
+                 access_data() | auth_data()) -> ok.
 
-write_alog(SConf, {access, Srv, Ip, Req, InH, OutH, Time}) ->
-    Ident  = ident(SConf, access),
-    LogMsg = format_accesslog(Srv, Ip, Req, InH, OutH, Time),
+write_alog(ServerName, access, Ident, {Ip, Req, InH, OutH, Time}) ->
+    LogMsg = format_accesslog(ServerName, Ip, Req, InH, OutH, Time),
     syslog:info_msg(Ident, LogMsg, []),
     ok;
-write_alog(SConf, {auth, Srv, Ip, Path,Item}) ->
-    Ident  = ident(SConf, auth),
-    LogMsg = format_authlog(Srv, Ip, Path, Item),
+write_alog(ServerName, auth, Ident, {Ip, Path,Item}) ->
+    LogMsg = format_authlog(ServerName, Ip, Path, Item),
     syslog:info_msg(Ident, LogMsg, []),
     ok;
-write_alog(_Sconf, _Data) ->
+write_alog(_, _, _, _) ->
     ok.
 
 
@@ -70,10 +69,10 @@ write_alog(_Sconf, _Data) ->
 %%====================================================================
 %% Internal functions
 %%====================================================================
--spec ident(#sconf{}, atom()) -> string().
+-spec ident(string(), atom()) -> string().
 
-ident(SConf, Type) ->
-    SConf#sconf.servername ++ "_" ++ atom_to_list(Type).
+ident(ServerName, Type) ->
+    ServerName ++ "_" ++ atom_to_list(Type).
 
 
 %%====================================================================
