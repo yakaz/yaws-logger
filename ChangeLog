@@ -1,3 +1,8 @@
+2011-01-03  Christopher Faulet  <christopher@yakaz.com>
+
+	* src/yaws_logger.erl: Implement the behaviour
+	yaws_log_handler. It replaces the old behaviour yaws_alog.
+
 2010-12-22  Christopher Faulet  <christopher@yakaz.com>
 
 	* src/yaws_logger.erl: Update API to follow specs of the behaviour

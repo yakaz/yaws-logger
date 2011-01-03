@@ -2,7 +2,7 @@
 -module(yaws_logger).
 -vsn('$Revision$ ').
 
--behaviour(yaws_alog).
+-behaviour(yaws_log_handler).
 
 -include_lib("yaws/include/yaws.hrl").
 -include_lib("yaws/include/yaws_api.hrl").
@@ -11,10 +11,10 @@
 
 %% API
 -export([
-         open_alog/3,
-         close_alog/3,
-         wrap_alog/4,
-         write_alog/4
+         open_log/3,
+         close_log/3,
+         wrap_log/4,
+         write_log/4
         ]).
 
 
@@ -26,9 +26,9 @@
 %% ===================================================================
 %% Public API.
 %% ===================================================================
--spec open_alog(string(), auth | access, string()) -> {true, string()}.
+-spec open_log(string(), auth | access, string()) -> {true, string()}.
 
-open_alog(ServerName, Type, _Dir) ->
+open_log(ServerName, Type, _Dir) ->
     Ident    = ident(ServerName, Type),
     Facility = yaws_logger_app:get_param(syslog_facility),
     syslog:add(Ident, Ident, Facility, info, []),
@@ -36,31 +36,31 @@ open_alog(ServerName, Type, _Dir) ->
     {true, Ident}.
 
 
--spec close_alog(any(), auth | access, string()) -> ok.
+-spec close_log(any(), auth | access, string()) -> ok.
 
-close_alog(_ServerName, _Type, Ident) ->
+close_log(_ServerName, _Type, Ident) ->
     syslog:remove(Ident),
     ok.
 
 
--spec wrap_alog(string(), auth | access, string(), non_neg_integer()) -> ok.
+-spec wrap_log(string(), auth | access, string(), non_neg_integer()) -> ok.
 
-wrap_alog(_, _, _, _) ->
+wrap_log(_, _, _, _) ->
     ok.
 
 
--spec write_alog(string(), auth | access, string(),
-                 access_data() | auth_data()) -> ok.
+-spec write_log(string(), auth | access, string(),
+                access_data() | auth_data()) -> ok.
 
-write_alog(ServerName, access, Ident, {Ip, Req, InH, OutH, Time}) ->
+write_log(ServerName, access, Ident, {Ip, Req, InH, OutH, Time}) ->
     LogMsg = format_accesslog(ServerName, Ip, Req, InH, OutH, Time),
     syslog:info_msg(Ident, LogMsg, []),
     ok;
-write_alog(ServerName, auth, Ident, {Ip, Path,Item}) ->
+write_log(ServerName, auth, Ident, {Ip, Path,Item}) ->
     LogMsg = format_authlog(ServerName, Ip, Path, Item),
     syslog:info_msg(Ident, LogMsg, []),
     ok;
-write_alog(_, _, _, _) ->
+write_log(_, _, _, _) ->
     ok.
 
 
