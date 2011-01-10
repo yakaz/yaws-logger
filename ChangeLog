@@ -1,3 +1,7 @@
+2011-01-10  Christopher Faulet  <christopher@yakaz.com>
+
+	* Create the branche STABLE_0.
+
 2011-01-03  Christopher Faulet  <christopher@yakaz.com>
 
 	* src/yaws_logger.erl: Implement the behaviour
