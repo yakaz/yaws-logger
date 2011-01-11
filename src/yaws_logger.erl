@@ -45,8 +45,8 @@ close_log(_ServerName, _Type, Ident) ->
 
 -spec wrap_log(string(), auth | access, string(), non_neg_integer()) -> ok.
 
-wrap_log(_, _, _, _) ->
-    ok.
+wrap_log(_, _, Data, _) ->
+    Data.
 
 
 -spec write_log(string(), auth | access, string(),
