@@ -1,5 +1,10 @@
 2011-01-25  Christopher Faulet  <christopher@yakaz.com>
 
+	Version 0.2.0
+
+	* ebin/yaws_logger.appup.in: Support live upgrade from 0.1.0 to
+	0.2.0.
+
 	* src/yaws_customlog.erl: Add module to parse log format for
 	access messages.
 	* src/yaws_logger.erl: Use the result of yaws_customlog module to

@@ -5,7 +5,9 @@
 { "@VERSION@",
   [
     %% To upgrade from the specified version to current one.
+    {"0.1.0", [{restart_application, yaws_logger}]}
   ], [
     %% To downgrade from the current version to the specified one.
+    {"0.1.0", [{restart_application, yaws_logger}]}
   ]
 }.
