@@ -5,7 +5,8 @@ erlsrcdir = $(ERLANG_INSTALL_LIB_DIR_yaws_logger)/src
 dist_erlsrc_DATA = yaws_logger.hrl					\
 		   yaws_logger_sup.erl					\
 		   yaws_logger_app.erl					\
-		   yaws_logger.erl
+		   yaws_logger.erl					\
+		   yaws_customlog.erl
 
 CLEANFILES = Emakefile
 

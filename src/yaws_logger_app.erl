@@ -34,8 +34,9 @@
 
 params_list() ->
     [
-      syslog_loglevel,
-      syslog_facility
+     access_logformat,
+     syslog_loglevel,
+     syslog_facility
     ].
 
 -spec get_param(atom()) -> term().
@@ -48,6 +49,8 @@ get_param(Param) ->
 
 is_param_valid(_Param, '$MANDATORY') ->
     false;
+is_param_valid(access_logformat, Value) ->
+    (Value =:= default orelse is_list(Value));
 is_param_valid(syslog_loglevel, Value) ->
     syslog:is_loglevel_valid(Value);
 is_param_valid(syslog_facility, Value) ->
@@ -100,6 +103,12 @@ check_params() ->
 
 log_param_errors([]) ->
     ok;
+log_param_errors([access_logformat = Param | Rest]) ->
+    error_logger:warning_msg(
+      "~s: invalid value for \"~s\": ~p.~n"
+      "It must be a string or default.~n",
+      [?APPLICATION, Param, get_param(Param)]),
+    log_param_errors(Rest);
 log_param_errors([syslog_loglevel = Param | Rest]) ->
     error_logger:warning_msg(
       "~s: invalid value for \"~s\": ~p.~n"
@@ -128,6 +137,7 @@ log_param_errors([Param | Rest]) ->
 start(_, _) ->
     Steps = [
       check_params,
+      parse_logformat,
       setup_syslog
     ],
     case do_start(Steps) of
@@ -160,6 +170,24 @@ do_start([check_params | Rest]) ->
             Message = io_lib:format(
               "~s: invalid application configuration~n", [?APPLICATION]),
             {error, invalid_configuration, Message}
+    end;
+do_start([parse_logformat | Rest]) ->
+    try
+        Fmt = case get_param(access_logformat) of
+                  default ->
+                      "%a %l %u %t \"%r\" %s %b \"%{Referer}i\""
+                          " \"%{User-Agent}i\" %T %v";
+                  S ->
+                      S
+              end,
+        set_param(parsed_access_logformat, yaws_customlog:parse(Fmt)),
+        do_start(Rest)
+    catch
+        throw:{error, Col, Msg} ->
+            Message = io_lib:format(
+                        "~s: error in access logoformat at column ~p: ~s~n",
+                        [?APPLICATION, Col, Msg]),
+            {error, badarg, Message}
     end;
 do_start([setup_syslog | Rest]) ->
     %% Add yaws_logger ident in syslog:

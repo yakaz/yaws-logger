@@ -80,22 +80,166 @@ ident(ServerName, Type) ->
                        #headers{}, #outh{}, non_neg_integer()) -> string().
 
 format_accesslog(ServerName, Ip, Req, InH, OutH, Time) ->
-    Now       = now(),
-    Status    = get_request_status(OutH),
-    Meth      = get_request_method(Req),
-    Path      = get_request_url(Req),
-    Ver       = get_http_version(Req),
-    Len       = get_response_size(Req, OutH),
-    Referer   = get_http_header(InH, referer),
-    UserAgent = get_http_header(InH, user_agent),
-    User      = get_auth_user(InH),
-    I = [format_ip(Ip), " - ", User, [$\s], format_now(Now), [$\s, $"],
-         no_ctl([Meth, $\s, Path, $\s, Ver]), [$",$\s], Status,
-         [$\s], Len, [$\s,$"], Referer, [$",$\s,$"], UserAgent,
-         [$",$\s], format_time(Time), [$\s], ServerName, [$\n]],
-    lists:flatten(I).
+    Fmt = yaws_logger_app:get_param(parsed_access_logformat),
+    format_accesslog(Fmt, ServerName, Ip, Req, InH, OutH, Time, []).
 
 
+-spec format_accesslog(list(), string(), ip_address() | string(),
+                       #http_request{}, #headers{}, #outh{}, non_neg_integer(),
+                       string()) -> string().
+
+format_accesslog([], _, _, _, _, _, _, LogMsg) ->
+    lists:flatten(lists:reverse(LogMsg));
+format_accesslog([{remote_ip, Cond}|Rest],
+                 ServerName, Ip, Req, InH, OutH, Time, LogMsg) ->
+    LogMsg1 = case check_cond(Cond, OutH#outh.status) of
+                  true  -> [format_ip(Ip)|LogMsg];
+                  false -> ["-"|LogMsg]
+              end,
+    format_accesslog(Rest, ServerName, Ip, Req, InH, OutH, Time, LogMsg1);
+format_accesslog([{response_length, Cond}|Rest],
+                 ServerName, Ip, Req, InH, OutH, Time, LogMsg) ->
+    LogMsg1 = case check_cond(Cond, OutH#outh.status) of
+                  true  -> [get_response_length(Req, OutH)|LogMsg];
+                  false -> ["-"|LogMsg]
+              end,
+    format_accesslog(Rest, ServerName, Ip, Req, InH, OutH, Time, LogMsg1);
+format_accesslog([{ms_time, Cond}|Rest],
+                 ServerName, Ip, Req, InH, OutH, Time, LogMsg) ->
+    LogMsg1 = case check_cond(Cond, OutH#outh.status) of
+                  true  -> [integer_to_list(Time)|LogMsg];
+                  false -> ["-"|LogMsg]
+              end,
+    format_accesslog(Rest, ServerName, Ip, Req, InH, OutH, Time, LogMsg1);
+format_accesslog([{request_protocol, Cond}|Rest],
+                 ServerName, Ip, Req, InH, OutH, Time, LogMsg) ->
+    LogMsg1 = case check_cond(Cond, OutH#outh.status) of
+                  true  -> [get_http_version(Req)|LogMsg];
+                  false -> ["-"|LogMsg]
+              end,
+    format_accesslog(Rest, ServerName, Ip, Req, InH, OutH, Time, LogMsg1);
+format_accesslog([{remote_host, Cond}|Rest],
+                 ServerName, Ip, Req, InH, OutH, Time, LogMsg) ->
+    LogMsg1 = case check_cond(Cond, OutH#outh.status) of
+                  true  -> [format_host(Ip)|LogMsg];
+                  false -> ["-"|LogMsg]
+              end,
+    format_accesslog(Rest, ServerName, Ip, Req, InH, OutH, Time, LogMsg1);
+format_accesslog([{remote_name, _Cond}|Rest],
+                 ServerName, Ip, Req, InH, OutH, Time, LogMsg) ->
+    LogMsg1 = ["-"|LogMsg],
+    format_accesslog(Rest, ServerName, Ip, Req, InH, OutH, Time, LogMsg1);
+format_accesslog([{request_method, Cond}|Rest],
+                 ServerName, Ip, Req, InH, OutH, Time, LogMsg) ->
+    LogMsg1 = case check_cond(Cond, OutH#outh.status) of
+                  true  -> [get_request_method(Req)|LogMsg];
+                  false -> ["-"|LogMsg]
+              end,
+    format_accesslog(Rest, ServerName, Ip, Req, InH, OutH, Time, LogMsg1);
+format_accesslog([{pid, Cond}|Rest],
+                 ServerName, Ip, Req, InH, OutH, Time, LogMsg) ->
+    LogMsg1 = case check_cond(Cond, OutH#outh.status) of
+                  true  -> [pid_to_list(self())|LogMsg];
+                  false -> ["-"|LogMsg]
+              end,
+    format_accesslog(Rest, ServerName, Ip, Req, InH, OutH, Time, LogMsg1);
+format_accesslog([{query_string, Cond}|Rest],
+                 ServerName, Ip, Req, InH, OutH, Time, LogMsg) ->
+    LogMsg1 = case check_cond(Cond, OutH#outh.status) of
+                  true  -> [get_query_string(Req)|LogMsg];
+                  false -> ["-"|LogMsg]
+              end,
+    format_accesslog(Rest, ServerName, Ip, Req, InH, OutH, Time, LogMsg1);
+format_accesslog([{request, Cond}|Rest],
+                 ServerName, Ip, Req, InH, OutH, Time, LogMsg) ->
+    LogMsg1 = case check_cond(Cond, OutH#outh.status) of
+                  true  -> [get_request(Req)|LogMsg];
+                  false -> ["-"|LogMsg]
+              end,
+    format_accesslog(Rest, ServerName, Ip, Req, InH, OutH, Time, LogMsg1);
+format_accesslog([{status, Cond}|Rest],
+                 ServerName, Ip, Req, InH, OutH, Time, LogMsg) ->
+    LogMsg1 = case check_cond(Cond, OutH#outh.status) of
+                  true  -> [get_request_status(OutH)|LogMsg];
+                  false -> ["-"|LogMsg]
+              end,
+    format_accesslog(Rest, ServerName, Ip, Req, InH, OutH, Time, LogMsg1);
+format_accesslog([{date, Cond}|Rest],
+                 ServerName, Ip, Req, InH, OutH, Time, LogMsg) ->
+    LogMsg1 = case check_cond(Cond, OutH#outh.status) of
+                  true  -> [format_now(now())|LogMsg];
+                  false -> ["-"|LogMsg]
+              end,
+    format_accesslog(Rest, ServerName, Ip, Req, InH, OutH, Time, LogMsg1);
+format_accesslog([{time, Cond}|Rest],
+                 ServerName, Ip, Req, InH, OutH, Time, LogMsg) ->
+    LogMsg1 = case check_cond(Cond, OutH#outh.status) of
+                  true  -> [integer_to_list(Time div 1000000)|LogMsg];
+                  false -> ["-"|LogMsg]
+              end,
+    format_accesslog(Rest, ServerName, Ip, Req, InH, OutH, Time, LogMsg1);
+format_accesslog([{user, Cond}|Rest],
+                 ServerName, Ip, Req, InH, OutH, Time, LogMsg) ->
+    LogMsg1 = case check_cond(Cond, OutH#outh.status) of
+                  true  -> [get_auth_user(InH)|LogMsg];
+                  false -> ["-"|LogMsg]
+              end,
+    format_accesslog(Rest, ServerName, Ip, Req, InH, OutH, Time, LogMsg1);
+format_accesslog([{url_path, Cond}|Rest],
+                 ServerName, Ip, Req, InH, OutH, Time, LogMsg) ->
+    LogMsg1 = case check_cond(Cond, OutH#outh.status) of
+                  true  -> [get_request_url(Req)|LogMsg];
+                  false -> ["-"|LogMsg]
+              end,
+    format_accesslog(Rest, ServerName, Ip, Req, InH, OutH, Time, LogMsg1);
+format_accesslog([{servername, Cond}|Rest],
+                 ServerName, Ip, Req, InH, OutH, Time, LogMsg) ->
+    LogMsg1 = case check_cond(Cond, OutH#outh.status) of
+                  true  -> [ServerName|LogMsg];
+                  false -> ["-"|LogMsg]
+              end,
+    format_accesslog(Rest, ServerName, Ip, Req, InH, OutH, Time, LogMsg1);
+format_accesslog([{{cookie, Name}, Cond}|Rest],
+                 ServerName, Ip, Req, InH, OutH, Time, LogMsg) ->
+    LogMsg1 = case check_cond(Cond, OutH#outh.status) of
+                  true  -> [get_cookie_val(Name, InH)|LogMsg];
+                  false -> ["-"|LogMsg]
+              end,
+    format_accesslog(Rest, ServerName, Ip, Req, InH, OutH, Time, LogMsg1);
+format_accesslog([{{request_header, Name}, Cond}|Rest],
+                 ServerName, Ip, Req, InH, OutH, Time, LogMsg) ->
+    LogMsg1 = case check_cond(Cond, OutH#outh.status) of
+                  true  -> [get_request_header(Name, InH)|LogMsg];
+                  false -> ["-"|LogMsg]
+              end,
+    format_accesslog(Rest, ServerName, Ip, Req, InH, OutH, Time, LogMsg1);
+format_accesslog([{{response_header, Name}, Cond}|Rest],
+                 ServerName, Ip, Req, InH, OutH, Time, LogMsg) ->
+    LogMsg1 = case check_cond(Cond, OutH#outh.status) of
+                  true  -> [get_response_header(Name, OutH)|LogMsg];
+                  false -> ["-"|LogMsg]
+              end,
+    format_accesslog(Rest, ServerName, Ip, Req, InH, OutH, Time, LogMsg1);
+format_accesslog([{char, C}|Rest],
+                 ServerName, Ip, Req, InH, OutH, Time, LogMsg) ->
+    LogMsg1 = [[C]|LogMsg],
+    format_accesslog(Rest, ServerName, Ip, Req, InH, OutH, Time, LogMsg1).
+
+
+
+
+-spec check_cond(none | {match, list()} | {nomatch, list()}, pos_integer()) ->
+    boolean().
+
+check_cond(none, _) ->
+    true;
+check_cond({match, Cond}, Status) ->
+    lists:member(Status, Cond);
+check_cond({nomatch, Cond}, Status) ->
+    not lists:member(Status, Cond).
+
+
+%%====================================================================
 -spec format_authlog(string(), ip_address() | string(), string(), string()) ->
     string().
 
@@ -115,16 +259,7 @@ format_authlog(ServerName, Ip, Path, Item) ->
     lists:flatten(I).
 
 
--spec no_ctl(string()) -> string().
-
-no_ctl([H|T]) when H < 32 ->
-    no_ctl(T);
-no_ctl([H|T]) ->
-    [H|no_ctl(T)];
-no_ctl([]) ->
-    [].
-
-
+%%====================================================================
 -spec format_ip(ip_address() | undefined | string()) -> string().
 
 format_ip(Ip) when is_tuple(Ip) ->
@@ -135,11 +270,16 @@ format_ip(HostName) ->
     HostName.
 
 
+-spec format_host(ip_address() | undefined | string()) -> string().
 
--spec format_time(non_neg_integer()) -> string().
+format_host(Ip) when is_tuple(Ip); is_list(Ip) ->
+    case inet:gethostbyaddr(Ip) of
+        {ok, H} -> element(2, H);
+        _       -> format_ip(Ip)
+    end;
+format_host(undefined) ->
+    "0.0.0.0".
 
-format_time(Time) ->
-    integer_to_list(Time div 1000000).
 
 %%====================================================================
 -spec format_now({non_neg_integer(),non_neg_integer(),non_neg_integer()}) ->
@@ -208,14 +348,47 @@ get_request_method(Req) ->
 
 get_request_url(Req) ->
     case Req#http_request.path of
-        {abs_path, Path} ->
-            case catch yaws_api:url_decode(Path) of
+        {abs_path, P} ->
+            case catch yaws_api:url_decode_q_split(P) of
                 {'EXIT', _} -> "/undecodable_path";
-                Val         -> Val
+                {Path, _}   -> Path
             end;
         _ ->
             "/undecodable_path"
     end.
+
+
+-spec get_query_string(#http_request{}) -> string().
+
+get_query_string(Req) ->
+    case Req#http_request.path of
+        {abs_path, P} ->
+            case catch yaws_api:url_decode_q_split(P) of
+                {'EXIT', _}  -> [];
+                {_, QString} -> QString
+            end;
+        _ ->
+            []
+    end.
+
+
+-spec get_request(#http_request{}) -> string().
+
+get_request(Req) ->
+    Meth = get_request_method(Req),
+    Ver  = get_http_version(Req),
+    Path = case Req#http_request.path of
+               {abs_path, P} ->
+                   case catch yaws_api:url_decode(P) of
+                       {'EXIT', _} -> "/undecodable_path";
+                       Val         -> Val
+                   end;
+               _ ->
+                   "/undecodable_path"
+           end,
+    no_ctl([Meth, $\s, Path, $\s, Ver]).
+
+
 
 
 -spec get_http_version(#http_request{}) -> string().
@@ -227,9 +400,77 @@ get_http_version(Req) ->
         {0,9} -> "HTTP/0.9"
     end.
 
--spec get_response_size(#http_request{}, #outh{}) -> string().
+-spec get_auth_user(#headers{}) -> string().
 
-get_response_size(Req, OutH) ->
+get_auth_user(InH) ->
+    case InH#headers.authorization of
+        {U, _P, _OStr} -> U;
+        _              -> "-"
+    end.
+
+
+-spec get_cookie_val(string(), #headers{}) -> string().
+
+get_cookie_val(Name, InH) ->
+    yaws_api:find_cookie_val(Name, InH#headers.cookie).
+
+
+-spec get_request_header(string(), #headers{}) -> string().
+
+get_request_header(Name, InH) ->
+    case Name of
+        "connection" ->
+            header_to_string(InH#headers.connection);
+        "accept" ->
+            header_to_string(InH#headers.accept);
+        "host" ->
+            header_to_string(InH#headers.host);
+        "if-modified-since" ->
+            header_to_string(InH#headers.if_modified_since);
+        "if-match" ->
+            header_to_string(InH#headers.if_match);
+        "if-none-match" ->
+            header_to_string(InH#headers.if_none_match);
+        "if-range" ->
+            header_to_string(InH#headers.if_range);
+        "if-unmodified-since" ->
+            header_to_string(InH#headers.if_unmodified_since);
+        "range" ->
+            header_to_string(InH#headers.range);
+        "referer" ->
+            header_to_string(InH#headers.referer);
+        "user-agent" ->
+            header_to_string(InH#headers.user_agent);
+        "accept-ranges" ->
+            header_to_string(InH#headers.accept_ranges);
+        "keep-alive" ->
+            header_to_string(InH#headers.keep_alive);
+        "location" ->
+            header_to_string(InH#headers.location);
+        "content-length" ->
+            header_to_string(InH#headers.content_length);
+        "content-type" ->
+            header_to_string(InH#headers.content_type);
+        "content-encoding" ->
+            header_to_string(InH#headers.content_encoding);
+        "authorization" ->
+            case InH#headers.authorization of
+                {_, _, Orig} -> header_to_string(Orig);
+                _            -> "-"
+            end;
+        "transfer-encoding" ->
+            header_to_string(InH#headers.transfer_encoding);
+        _ ->
+            case lists:keysearch(Name, 3, InH#headers.other) of
+                {value, {http_header, _, _, _, Val}} -> header_to_string(Val);
+                false                                -> "-"
+            end
+    end.
+
+
+-spec get_response_length(#http_request{}, #outh{}) -> string().
+
+get_response_length(Req, OutH) ->
     case Req#http_request.method of
         'HEAD' ->
             "-";
@@ -245,29 +486,63 @@ get_response_size(Req, OutH) ->
             end
     end.
 
--spec get_auth_user(#headers{}) -> string().
 
-get_auth_user(InH) ->
-    case InH#headers.authorization of
-        {U, _P, _OStr} -> U;
-        _              -> "-"
-    end.
+-spec get_response_header(string(), #outh{}) -> string().
 
-
--spec get_http_header(#headers{}, atom()) -> string().
-
-get_http_header(InH, HName) ->
-    if
-        HName =:= referer ->
-            header_to_string(InH#headers.referer);
-        HName =:= user_agent ->
-            header_to_string(InH#headers.user_agent);
-        true ->
+get_response_header(Name, OutH) ->
+    case Name of
+        "status" ->
+            header_to_string(OutH#outh.status);
+        "connection" ->
+            header_to_string(OutH#outh.connection);
+        "server" ->
+            header_to_string(OutH#outh.server);
+        "location" ->
+            header_to_string(OutH#outh.location);
+        "cache-control" ->
+            header_to_string(OutH#outh.cache_control);
+        "expires" ->
+            header_to_string(OutH#outh.expires);
+        "date" ->
+            header_to_string(OutH#outh.date);
+        "allow" ->
+            header_to_string(OutH#outh.allow);
+        "last-modified" ->
+            header_to_string(OutH#outh.last_modified);
+        "etag" ->
+            header_to_string(OutH#outh.etag);
+        "content-range" ->
+            header_to_string(OutH#outh.content_range);
+        "content-length" ->
+            header_to_string(OutH#outh.content_length);
+        "content-type" ->
+            header_to_string(OutH#outh.content_type);
+        "content-encoding" ->
+            header_to_string(OutH#outh.content_encoding);
+        "transfer-encoding" ->
+            header_to_string(OutH#outh.transfer_encoding);
+        "www-authenticate" ->
+            header_to_string(OutH#outh.www_authenticate);
+        _ ->
             "-"
     end.
 
 
--spec header_to_string(string() | undefined) -> string().
+-spec header_to_string(integer() | atom() | string() | undefined) ->
+    string().
 
 header_to_string(undefined) -> "-";
-header_to_string(Header)    -> Header.
+header_to_string(N) when is_integer(N) -> N;
+header_to_string(A) when is_atom(A)    -> A;
+header_to_string(S) when is_list(S)    -> S.
+
+
+
+-spec no_ctl(string()) -> string().
+
+no_ctl([H|T]) when H < 32 ->
+    no_ctl(T);
+no_ctl([H|T]) ->
+    [H|no_ctl(T)];
+no_ctl([]) ->
+    [].
