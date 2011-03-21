@@ -3,7 +3,7 @@ dnl Autoconf initialization.
 dnl ------------------------------------------------------------------
 dnl $Id$
 
-AC_INIT([yaws_logger], [0.2.0], [team@yakaz.com])
+AC_INIT([yaws_logger], [0.2.1], [team@yakaz.com])
 
 dnl Release date.
 APP_RELEASE_DATE=
