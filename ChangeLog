@@ -1,3 +1,8 @@
+2011-03-21  Christopher Faulet  <christopher@yakaz.com>
+
+	* src/yaws_logger_app.erl: Add function to get/set parsed access
+	logformat. When we get it, if it is undefined, we re-parse it.
+
 2011-01-25  Christopher Faulet  <christopher@yakaz.com>
 
 	Version 0.2.0

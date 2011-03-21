@@ -80,7 +80,7 @@ ident(ServerName, Type) ->
                        #headers{}, #outh{}, non_neg_integer()) -> string().
 
 format_accesslog(ServerName, Ip, Req, InH, OutH, Time) ->
-    Fmt = yaws_logger_app:get_param(parsed_access_logformat),
+    Fmt = yaws_logger_app:get_parsed_logformat(),
     format_accesslog(Fmt, ServerName, Ip, Req, InH, OutH, Time, []).
 
 

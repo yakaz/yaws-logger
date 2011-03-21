@@ -20,7 +20,9 @@
 
 %% API
 -export([
-         set_loglevel/1
+         set_loglevel/1,
+         set_parsed_logformat/1,
+         get_parsed_logformat/0
         ]).
 
 %% Application callbacks
@@ -172,22 +174,9 @@ do_start([check_params | Rest]) ->
             {error, invalid_configuration, Message}
     end;
 do_start([parse_logformat | Rest]) ->
-    try
-        Fmt = case get_param(access_logformat) of
-                  default ->
-                      "%a %l %u %t \"%r\" %s %b \"%{Referer}i\""
-                          " \"%{User-Agent}i\" %T %v";
-                  S ->
-                      S
-              end,
-        set_param(parsed_access_logformat, yaws_customlog:parse(Fmt)),
-        do_start(Rest)
-    catch
-        throw:{error, Col, Msg} ->
-            Message = io_lib:format(
-                        "~s: error in access logoformat at column ~p: ~s~n",
-                        [?APPLICATION, Col, Msg]),
-            {error, badarg, Message}
+    case set_parsed_logformat(get_param(access_logformat)) of
+        {ok, _}                  -> do_start(Rest);
+        {error, badarg, Message} -> {error, badarg, Message}
     end;
 do_start([setup_syslog | Rest]) ->
     %% Add yaws_logger ident in syslog:
@@ -226,6 +215,35 @@ set_loglevel(Level) ->
             syslog_wrapper:create(yaws_logger_log, yaws_logger, Level);
         false ->
             false
+    end.
+
+
+set_parsed_logformat(default) ->
+    set_parsed_logformat("%a %l %u %t \"%r\" %s %b \"%{Referer}i\""
+                        " \"%{User-Agent}i\" %T %v");
+set_parsed_logformat(Fmt) ->
+    try
+        PFmt = yaws_customlog:parse(Fmt),
+        set_param(parsed_access_logformat, PFmt),
+        {ok, PFmt}
+    catch
+        throw:{error, Col, Msg} ->
+            Message = io_lib:format(
+                        "~s: error in access logoformat at column ~p: ~s~n",
+                        [?APPLICATION, Col, Msg]),
+            {error, badarg, Message}
+    end.
+
+
+get_parsed_logformat() ->
+    case application:get_env(?APPLICATION, parsed_access_logformat) of
+        {ok, PFmt} ->
+            PFmt;
+        undefined ->
+            case set_parsed_logformat(get_param(access_logformat)) of
+                {ok, PFmt}         -> PFmt;
+                {error, badarg, _} -> []
+            end
     end.
 
 %%====================================================================
