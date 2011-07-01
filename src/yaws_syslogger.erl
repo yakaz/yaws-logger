@@ -1,13 +1,11 @@
-%% $Id$
--module(yaws_logger).
--vsn('$Revision$ ').
+-module(yaws_syslogger).
 
--behaviour(yaws_log_handler).
+-behaviour(yaws_logger).
 
 -include_lib("yaws/include/yaws.hrl").
 -include_lib("yaws/include/yaws_api.hrl").
 -include_lib("kernel/include/inet.hrl").
--include("yaws_logger.hrl").
+-include("yaws_syslogger.hrl").
 
 %% API
 -export([
@@ -30,9 +28,9 @@
 
 open_log(ServerName, Type, _Dir) ->
     Ident    = ident(ServerName, Type),
-    Facility = yaws_logger_app:get_param(syslog_facility),
+    Facility = yaws_syslogger_app:get_param(syslog_facility),
     syslog:add(Ident, Ident, Facility, info, []),
-    io:format("~p added into yaws_logger", [Ident]),
+    io:format("~p added into yaws_syslogger", [Ident]),
     {true, Ident}.
 
 
@@ -80,7 +78,7 @@ ident(ServerName, Type) ->
                        #headers{}, #outh{}, non_neg_integer()) -> string().
 
 format_accesslog(ServerName, Ip, Req, InH, OutH, Time) ->
-    Fmt = yaws_logger_app:get_parsed_logformat(),
+    Fmt = yaws_syslogger_app:get_parsed_logformat(),
     format_accesslog(Fmt, ServerName, Ip, Req, InH, OutH, Time, []).
 
 

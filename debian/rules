@@ -10,7 +10,7 @@
 #export DH_VERBOSE=1
 
 WORKDIR=$(CURDIR)/debian/build
-DESTDIR=$(CURDIR)/debian/yaws-logger
+DESTDIR=$(CURDIR)/debian/yaws-syslogger
 
 ifneq (,$(findstring debug,$(DEB_BUILD_OPTIONS)))
 		DEBUG = yes
@@ -24,7 +24,7 @@ configure-stamp:
 		if [ -d $(WORKDIR) ]; then rm -fr $(WORKDIR); fi
 		mkdir -p $(WORKDIR)
 		cd $(WORKDIR) &&					\
-		$(CURDIR)/configure --enable-debug=$(DEBUG) --with-yaws=/usr/lib/yaws
+		$(CURDIR)/configure --enable-debug=$(DEBUG)
 		touch configure-stamp
 
 build: build-stamp
@@ -45,7 +45,7 @@ clean-stamp:
 install: build
 		dh_testdir
 		dh_testroot
-		dh_clean -k
+		dh_prep
 		dh_installdirs -i
 		cd $(WORKDIR) && $(MAKE) install DESTDIR=$(DESTDIR)
 

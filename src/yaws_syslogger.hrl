@@ -1,5 +1,3 @@
-%% $Id$
-
 -ifdef(debug).
 
 -define(PREFIX_FORMAT, " -- ~20s:~-4b -- ~p -- ").

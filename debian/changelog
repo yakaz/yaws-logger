@@ -1,3 +1,11 @@
+yaws-syslogger (0.3.0-1) experimental; urgency=low
+
+  * Application renamed from "yaws_logger" to "yaws_syslogger" to avoid
+    clashes with the "yaws_logger" module from Yaws.
+  o Debian package renamed to "yaws-syslogger" accordingly.
+
+ -- Jean-Sébastien Pédron <jean-sebastien@yakaz.com>  Fri, 01 Jul 2011 09:55:30 +0200
+
 yaws-logger (0.2.1-1) unstable; urgency=low
 
   * New upstream release.

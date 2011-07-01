@@ -1,6 +1,4 @@
-# $Id$
-
-beamdir = $(ERLANG_INSTALL_LIB_DIR_yaws_logger)/ebin
+beamdir = $(ERLANG_INSTALL_LIB_DIR_yaws_syslogger)/ebin
 
 APP_NAME  = $(PACKAGE_NAME)
 APP_FILES = $(APP_NAME).app $(APP_NAME).appup

@@ -1,10 +1,8 @@
-%% $Id$
--module(yaws_logger_sup).
--vsn('$Revision$ ').
+-module(yaws_syslogger_sup).
 
 -behaviour(supervisor).
 
--include("yaws_logger.hrl").
+-include("yaws_syslogger.hrl").
 
 %% API
 -export([

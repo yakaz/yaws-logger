@@ -1,10 +1,8 @@
-%% $Id$
--module(yaws_logger_app).
--vsn('$Revision$ ').
+-module(yaws_syslogger_app).
 
 -behaviour(application).
 
--include("yaws_logger.hrl").
+-include("yaws_syslogger.hrl").
 
 %% Configuration API.
 -export([
@@ -179,25 +177,25 @@ do_start([parse_logformat | Rest]) ->
         {error, badarg, Message} -> {error, badarg, Message}
     end;
 do_start([setup_syslog | Rest]) ->
-    %% Add yaws_logger ident in syslog:
+    %% Add yaws_syslogger ident in syslog:
     %% default level = info
     Facility = get_param(syslog_facility),
-    syslog:add(yaws_logger, "yaws_logger", Facility, info, [log_pid]),
+    syslog:add(yaws_syslogger, "yaws_syslogger", Facility, info, [log_pid]),
 
-    %% Create the syslog wrapper for yaws_logger
+    %% Create the syslog wrapper for yaws_syslogger
     set_loglevel(get_param(syslog_loglevel)),
 
     do_start(Rest);
 do_start([]) ->
-    yaws_logger_sup:start_link().
+    yaws_syslogger_sup:start_link().
 
 -spec stop(term()) -> ok.
 
 stop(_) ->
-    ?INFO("application yaws_logger stopped", []),
+    ?INFO("application yaws_syslogger stopped", []),
 
-    %% Remove syslog entry for yaws_logger
-    syslog:remove(yaws_logger),
+    %% Remove syslog entry for yaws_syslogger
+    syslog:remove(yaws_syslogger),
     ok.
 
 -spec config_change([{atom(), term()}], [{atom(), term()}], [atom()]) -> ok.
@@ -212,7 +210,7 @@ config_change(_, _, _) ->
 set_loglevel(Level) ->
     case syslog:is_loglevel_valid(Level) of
         true ->
-            syslog_wrapper:create(yaws_logger_log, yaws_logger, Level);
+            syslog_wrapper:create(yaws_syslogger_log, yaws_syslogger, Level);
         false ->
             false
     end.

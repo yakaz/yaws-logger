@@ -1,7 +1,6 @@
 #!@ESCRIPT@
 % -*-erlang-*-
 % vim:ft=erlang:
-% $Id$
 
 %% @doc
 %% When this script is called without arguments, it'll run the EUnit
@@ -12,26 +11,18 @@
 main([]) ->
     case filename:basename(escript:script_name()) of
         "etest" -> main(usage);
-        _       -> main([filename:join(["@srcdir@", escript:script_name()])])
+        _       -> main([escript:script_name()])
     end;
-
-%% @doc
-%% When called with "junit" as the first argument, following arguments
-%% are EUnit test names. They are all executed and a JUnit-compatible
-%% XML file is written by our eunit_tty. This always exits with 0.
-
-main(["-junit" | Tests]) ->
-    code:add_patha(filename:join(["@top_builddir@", "ebin"])),
-    Test_Set = make_junit_testset(Tests, [@EMKOPTS@]),
-    Ret = eunit:test(Test_Set, [{mode, junit}]),
-    stop(Ret);
 
 %% @doc
 %% A single argument is considered as the test name. See main([]).
 
 main([Test]) ->
     code:add_patha(filename:join(["@top_builddir@", "ebin"])),
-    Ret = run_test(Test, [@EMKOPTS@]),
+    Test1 = filename:join(
+      filename:dirname(Test),
+      filename:basename(Test)),
+    Ret = run_test(Test1, [@EMKOPTS@]),
     stop(Ret);
 
 %% @doc
@@ -72,7 +63,7 @@ run_test(Test, Compiler_Options) ->
             print_load_error(Test, Module, Reason),
             error;
         {ok, Module, []} ->
-            Module:test();
+            eunit:test([Module], [{report, {eunit_surefire, [{dir,"."}]}}]);
         {ok, _Module, Warnings} ->
             print_compile_errors(Test, [], Warnings),
             error
@@ -117,34 +108,6 @@ load_test(Test, Compiler_Options) ->
     end.
 
 % --------------------------------------------------------------------
-% JUnit mode.
-% --------------------------------------------------------------------
-
-make_junit_testset(Tests, Compiler_Options) ->
-    make_junit_testset2(Tests, Compiler_Options, []).
-
-make_junit_testset2([Test | Rest], Compiler_Options, Test_Set) ->
-    % We compile and load the test module now but the return value is
-    % handled by a generator.
-    Compile_Ret = load_test(filename:join(["@srcdir@", Test]),
-      Compiler_Options),
-    % The generator will either return the Module name or return a dummy
-    % test that always throw an exception to report the compile/load
-    % errors.
-    Generator = fun() ->
-        case Compile_Ret of
-            {ok, Module, []} ->
-                Module;
-            _ ->
-                {Test, fun() -> raise_error(Test, Compile_Ret) end}
-        end
-    end,
-    make_junit_testset2(Rest, Compiler_Options,
-      [{generator, Generator} | Test_Set]);
-make_junit_testset2([], _Compiler_Options, Test_Set) ->
-    lists:reverse(Test_Set).
-
-% --------------------------------------------------------------------
 % Error reporting.
 % --------------------------------------------------------------------
 
@@ -175,21 +138,16 @@ print_load_error(Test, Module, Reason) ->
     io:format("Can't load module ~s (~s): ~p~n",
       [Module, Test ++ ".erl", Reason]).
 
-raise_error(Test, Error) ->
-    throw({load_error, Test, Error}).
-
 % --------------------------------------------------------------------
 % Usage.
 % --------------------------------------------------------------------
 
 version() ->
-    io:format("~s testsuite - ~s~n",
-      ["@PACKAGE_STRING@", "$Revision$"]).
+    io:format("~s testsuite~n", ["@PACKAGE_STRING@"]).
 
 usage(Prog_Name) ->
     version(),
     io:format(
       "~n"
-      "Usage: ~s <TESTNAME>~n"
-      "       ~s -junit [<TESTNAME>, ...]~n",
-      [Prog_Name, Prog_Name]).
+      "Usage: ~s <TESTNAME>~n",
+      [Prog_Name]).

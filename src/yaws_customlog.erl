@@ -1,6 +1,4 @@
-%% $Id$
 -module(yaws_customlog).
--vsn('$Revision$ ').
 
 
 %% API

@@ -1,3 +1,13 @@
+2011-07-01  Jean-Sébastien Pédron  <jean-sebastien@yakaz.com>
+
+	Version 0.3.0.
+
+	The application is renamed to yaws_syslogger. This was needed to avoid
+	a clash with a new module, "yaws_logger", in Yaws 1.90. The Debian
+	package is now named yaws-syslogger.
+
+	While here, bring autotools and Debian package cleanups from "bones".
+
 2011-03-21  Christopher Faulet  <christopher@yakaz.com>
 
 	Version 0.2.1
