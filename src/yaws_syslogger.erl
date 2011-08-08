@@ -402,8 +402,8 @@ get_http_version(Req) ->
 
 get_auth_user(InH) ->
     case InH#headers.authorization of
-        {U, _P, _OStr} -> U;
-        _              -> "-"
+        {U, _P, _OStr} when is_list(U) -> U;
+        _                              -> "-"
     end.
 
 

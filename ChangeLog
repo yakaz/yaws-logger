@@ -1,3 +1,9 @@
+2011-08-08  Christopher Faulet  <christopher@yakaz.com>
+
+	* src/yaws_syslogger.erl: Fix bug when remote user is
+	retrieved. It may be undefined, so we must be sure that it is a
+	string.
+
 2011-07-01  Jean-Sébastien Pédron  <jean-sebastien@yakaz.com>
 
 	Version 0.3.0.
