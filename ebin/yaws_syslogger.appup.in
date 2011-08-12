@@ -4,17 +4,9 @@
 { "@VERSION@",
   [
     %% To upgrade from the specified version to current one.
-    {"0.2.0", [
-               {load_module, yaws_logger_app},
-               {load_module, yaws_logger}
-              ]},
-    {"0.1.0", [{restart_application, yaws_logger}]}
+    {"0.3.0", [{load_module, yaws_syslogger}]}
   ], [
     %% To downgrade from the current version to the specified one.
-    {"0.2.0", [
-               {load_module, yaws_logger_app},
-               {load_module, yaws_logger}
-              ]},
-    {"0.1.0", [{restart_application, yaws_logger}]}
+    {"0.3.0", [{load_module, yaws_syslogger}]}
   ]
 }.

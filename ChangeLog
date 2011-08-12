@@ -1,5 +1,10 @@
 2011-08-08  Christopher Faulet  <christopher@yakaz.com>
 
+	Version 0.3.1
+
+	* ebin/yaws_syslogger.appup.in: Support live upgrade from 0.3.0 to
+	0.3.1.
+
 	* src/yaws_syslogger.erl: Fix bug when remote user is
 	retrieved. It may be undefined, so we must be sure that it is a
 	string.
