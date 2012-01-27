@@ -1,4 +1,4 @@
-Source: yaws-syslogger
+Source: erlang-yaws-syslogger
 Section: devel
 Priority: optional
 Maintainer: Christopher Faulet <christopher@yakaz.com>
@@ -7,12 +7,12 @@ Build-Depends: debhelper (>= 8), autotools-dev, erlang-yaws (>= 1.92),
  erlang-dev (>= 1:13.b.1-3)
 Standards-Version: 3.9.1
 
-Package: yaws-syslogger
+Package: erlang-yaws-syslogger
 Architecture: all
 Section: devel
 Priority: optional
-Depends: ${misc:Depends}, ${erlang:Depends}, syslogger (>= 1.0.0), erlang-yaws (>= 1.92),
- yakaz-erlang-utils (>= 1.0.0)
+Depends: ${misc:Depends}, ${erlang:Depends}, erlang-syslogger (>= 1.0.1), erlang-yaws (>= 1.92),
+ erlang-yakaz-utils (>= 2.0.0)
 Description: Yaws logs sent to syslog
  .
  This module extends Yaws to permit the use of syslog to write any log

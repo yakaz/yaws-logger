@@ -1,6 +1,8 @@
-yaws-syslogger (0.3.1-2) experimental; urgency=low
+erlang-yaws-syslogger (0.3.1-2) experimental; urgency=low
 
   * Recompilation to use Yaws-1.92
+  * Update package dependencies.
+  * Rename debian package.
 
  -- Christopher Faulet <christopher@yakaz.com>  Mon, 16 Jan 2012 09:35:10 +0100
 
