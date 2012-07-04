@@ -4,7 +4,8 @@ dist_erlsrc_DATA = yaws_syslogger.hrl					\
 		   yaws_syslogger_sup.erl				\
 		   yaws_syslogger_app.erl				\
 		   yaws_syslogger.erl					\
-		   yaws_customlog.erl
+		   yaws_customlog.erl					\
+		   yaws_syslogger_netutils.erl
 
 CLEANFILES = Emakefile
 
