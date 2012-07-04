@@ -101,8 +101,9 @@ parse_logvar([$},$i|Rest], Col, Var) ->
     {{request_header, string:to_lower(lists:reverse(Var))}, Col+2, Rest};
 parse_logvar([$},$o|Rest], Col, Var) ->
     {{response_header, string:to_lower(lists:reverse(Var))}, Col+2, Rest};
+parse_logvar([$r,$e,$a,$l,$},$a|Rest], Col, []) ->
+    {real_remote_ip, Col+6, Rest};
 parse_logvar([C|Rest], Col, Var) ->
     parse_logvar(Rest, Col+1, [C|Var]).
-
 
 

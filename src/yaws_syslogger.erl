@@ -95,6 +95,13 @@ format_accesslog([{remote_ip, Cond}|Rest],
                   false -> ["-"|LogMsg]
               end,
     format_accesslog(Rest, ServerName, Ip, Req, InH, OutH, Time, LogMsg1);
+format_accesslog([{real_remote_ip, Cond}|Rest],
+                 ServerName, Ip, Req, InH, OutH, Time, LogMsg) ->
+    LogMsg1 = case check_cond(Cond, OutH#outh.status) of
+                  true  -> [format_real_ip(Ip,InH)|LogMsg];
+                  false -> ["-"|LogMsg]
+              end,
+    format_accesslog(Rest, ServerName, Ip, Req, InH, OutH, Time, LogMsg1);
 format_accesslog([{response_length, Cond}|Rest],
                  ServerName, Ip, Req, InH, OutH, Time, LogMsg) ->
     LogMsg1 = case check_cond(Cond, OutH#outh.status) of
@@ -280,6 +287,46 @@ format_host(undefined) ->
 
 
 %%====================================================================
+-spec format_real_ip(ip_address() | string(), #headers{}) ->
+    string().
+
+format_real_ip(Ip, InH) when is_tuple(Ip) ->
+    case is_whitelisted_revproxy(Ip) of
+        true ->
+            case yaws:split_sep(InH#headers.x_forwarded_for, $,) of
+                [FirstIp|_Proxies] -> FirstIp;
+                []                 -> inet_parse:ntoa(Ip)
+            end;
+        false ->
+            inet_parse:ntoa(Ip)
+    end;
+format_real_ip(HostName, InH) ->
+    try
+        Ip = yaws_syslogger_netutils:parse_ip(HostName),
+        format_real_ip(Ip, InH)
+    catch
+        _:_ ->
+            HostName
+    end.
+
+
+-spec is_whitelisted_revproxy(ip_address()) -> boolean().
+
+is_whitelisted_revproxy(Ip) ->
+    RevWList = yaws_syslogger_app:get_param(parsed_revproxy_whitelist),
+    is_whitelisted_revproxy(Ip, RevWList).
+
+is_whitelisted_revproxy(_Ip, []) ->
+    false;
+is_whitelisted_revproxy(Ip, [IpRange|Rest]) ->
+    case yaws_syslogger_netutils:match_ip(Ip, IpRange) of
+        true  -> true;
+        false -> is_whitelisted_revproxy(Ip, Rest)
+    end.
+
+
+
+%%====================================================================
 -spec format_now({non_neg_integer(),non_neg_integer(),non_neg_integer()}) ->
     iolist().
 
@@ -458,6 +505,8 @@ get_request_header(Name, InH) ->
             end;
         "transfer-encoding" ->
             header_to_string(InH#headers.transfer_encoding);
+        "x-forwarded-for" ->
+            header_to_string(InH#headers.x_forwarded_for);
         _ ->
             case lists:keysearch(Name, 3, InH#headers.other) of
                 {value, {http_header, _, _, _, Val}} -> header_to_string(Val);
