@@ -1,3 +1,11 @@
+erlang-yaws-syslogger (0.4.0-1) experimental; urgency=low
+
+  * Add a module to deal with ip addresses and ip ranges
+  * Add 'revproxy_whitelist' list into the application environnement
+  * Add the "real" format for the client ip address
+
+ -- Christopher Faulet <christopher@yakaz.com>  Wed, 04 Jul 2012 15:39:16 +0200
+
 erlang-yaws-syslogger (0.3.1-2) experimental; urgency=low
 
   * Recompilation to use Yaws-1.92
