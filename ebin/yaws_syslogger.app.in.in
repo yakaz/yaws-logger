@@ -21,8 +21,9 @@
     {env, [
         %% Configuration default values.
         %% DO NOT EDIT: The final configuration is made in sys.config.
-        {access_logformat, default},
-        {syslog_loglevel, info},
-        {syslog_facility, local3}
+        {access_logformat,   default},
+        {revproxy_whitelist, []},
+        {syslog_loglevel,    info},
+        {syslog_facility,    local3}
       ]}
   ]}.

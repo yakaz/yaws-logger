@@ -20,7 +20,9 @@
 -export([
          set_loglevel/1,
          set_parsed_logformat/1,
-         get_parsed_logformat/0
+         get_parsed_logformat/0,
+         set_parsed_revproxy_whitelist/1,
+         get_parsed_revproxy_whitelist/0
         ]).
 
 %% Application callbacks
@@ -35,6 +37,7 @@
 params_list() ->
     [
      access_logformat,
+     revproxy_whitelist,
      syslog_loglevel,
      syslog_facility
     ].
@@ -51,6 +54,8 @@ is_param_valid(_Param, '$MANDATORY') ->
     false;
 is_param_valid(access_logformat, Value) ->
     (Value =:= default orelse is_list(Value));
+is_param_valid(revproxy_whitelist, Value) ->
+    is_list(Value);
 is_param_valid(syslog_loglevel, Value) ->
     syslog:is_loglevel_valid(Value);
 is_param_valid(syslog_facility, Value) ->
@@ -109,6 +114,12 @@ log_param_errors([access_logformat = Param | Rest]) ->
       "It must be a string or default.~n",
       [?APPLICATION, Param, get_param(Param)]),
     log_param_errors(Rest);
+log_param_errors([revproxy_whitelist = Param | Rest]) ->
+    error_logger:warning_msg(
+      "~s: invalid value for \"~s\": ~p.~n"
+      "It must be a string.~n",
+      [?APPLICATION, Param, get_param(Param)]),
+    log_param_errors(Rest);
 log_param_errors([syslog_loglevel = Param | Rest]) ->
     error_logger:warning_msg(
       "~s: invalid value for \"~s\": ~p.~n"
@@ -136,10 +147,11 @@ log_param_errors([Param | Rest]) ->
 
 start(_, _) ->
     Steps = [
-      check_params,
-      parse_logformat,
-      setup_syslog
-    ],
+             check_params,
+             parse_logformat,
+             parse_revproxy_whitelist,
+             setup_syslog
+            ],
     case do_start(Steps) of
         {error, Reason, Message} ->
             Log = case application:get_env(kernel, error_logger) of
@@ -173,6 +185,11 @@ do_start([check_params | Rest]) ->
     end;
 do_start([parse_logformat | Rest]) ->
     case set_parsed_logformat(get_param(access_logformat)) of
+        {ok, _}                  -> do_start(Rest);
+        {error, badarg, Message} -> {error, badarg, Message}
+    end;
+do_start([parse_revproxy_whitelist | Rest]) ->
+    case set_parsed_revproxy_whitelist(get_param(revproxy_whitelist)) of
         {ok, _}                  -> do_start(Rest);
         {error, badarg, Message} -> {error, badarg, Message}
     end;
@@ -216,6 +233,7 @@ set_loglevel(Level) ->
     end.
 
 
+%% ---
 set_parsed_logformat(default) ->
     set_parsed_logformat("%a %l %u %t \"%r\" %s %b \"%{Referer}i\""
                         " \"%{User-Agent}i\" %T %v");
@@ -244,7 +262,43 @@ get_parsed_logformat() ->
             end
     end.
 
+
+%% ---
+set_parsed_revproxy_whitelist(Lst) ->
+    try
+        RevWList = parse_revproxy_list(Lst, []),
+        set_param(parsed_revproxy_whitelist, RevWList),
+        {ok, RevWList}
+    catch
+        throw:{error, BadIp} ->
+            Message = io_lib:format(
+                        "~s: invalid ip in revproxy whitelist: ~s~n",
+                        [?APPLICATION, BadIp]),
+            {error, badarg, Message}
+    end.
+
+
+get_parsed_revproxy_whitelist() ->
+    case application:get_env(?APPLICATION, parsed_revproxy_whitelist) of
+        {ok, RevWList} ->
+            RevWList;
+        undefined ->
+            case set_parsed_revproxy_whitelist(get_param(revproxy_whitelist)) of
+                {ok, RevWList}     -> RevWList;
+                {error, badarg, _} -> []
+            end
+    end.
+
 %%====================================================================
 %% Internal functions
 %%====================================================================
-
+parse_revproxy_list([], Result) ->
+    lists:reverse(Result);
+parse_revproxy_list([Str|Rest], Result) ->
+    try
+        parse_revproxy_list(Rest,
+                            [yaws_syslogger_netutils:parse_ip(Str)|Result])
+    catch
+        throw:{error, einval} ->
+            throw({error, Str})
+    end.
