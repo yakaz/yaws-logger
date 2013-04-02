@@ -16,10 +16,10 @@
         ]).
 
 
--type access_data() :: {ip_address() | string(), #http_request{}, #headers{},
+-type access_data() :: {inet:ip_address() | string(), #http_request{}, #headers{},
                         #outh{}, non_neg_integer()}.
 
--type auth_data() :: {ip_address() | string(), string(), string()}.
+-type auth_data() :: {inet:ip_address() | string(), string(), string()}.
 
 %% ===================================================================
 %% Public API.
@@ -74,7 +74,7 @@ ident(ServerName, Type) ->
 
 
 %%====================================================================
--spec format_accesslog(string(), ip_address() | string(), #http_request{},
+-spec format_accesslog(string(), inet:ip_address() | string(), #http_request{},
                        #headers{}, #outh{}, non_neg_integer()) -> string().
 
 format_accesslog(ServerName, Ip, Req, InH, OutH, Time) ->
@@ -82,7 +82,7 @@ format_accesslog(ServerName, Ip, Req, InH, OutH, Time) ->
     format_accesslog(Fmt, ServerName, Ip, Req, InH, OutH, Time, []).
 
 
--spec format_accesslog(list(), string(), ip_address() | string(),
+-spec format_accesslog(list(), string(), inet:ip_address() | string(),
                        #http_request{}, #headers{}, #outh{}, non_neg_integer(),
                        string()) -> string().
 
@@ -245,7 +245,8 @@ check_cond({nomatch, Cond}, Status) ->
 
 
 %%====================================================================
--spec format_authlog(string(), ip_address() | string(), string(), string()) ->
+-spec format_authlog(string(), inet:ip_address() | string(), string(),
+                     string()) ->
     string().
 
 format_authlog(ServerName, Ip, Path, Item) ->
@@ -265,7 +266,7 @@ format_authlog(ServerName, Ip, Path, Item) ->
 
 
 %%====================================================================
--spec format_ip(ip_address() | undefined | string()) -> string().
+-spec format_ip(inet:ip_address() | undefined | string()) -> string().
 
 format_ip(Ip) when is_tuple(Ip) ->
     inet_parse:ntoa(Ip);
@@ -275,7 +276,7 @@ format_ip(HostName) ->
     HostName.
 
 
--spec format_host(ip_address() | undefined | string()) -> string().
+-spec format_host(inet:ip_address() | undefined | string()) -> string().
 
 format_host(Ip) when is_tuple(Ip); is_list(Ip) ->
     case inet:gethostbyaddr(Ip) of
@@ -287,7 +288,7 @@ format_host(undefined) ->
 
 
 %%====================================================================
--spec format_real_ip(ip_address() | string(), #headers{}) ->
+-spec format_real_ip(inet:ip_address() | string(), #headers{}) ->
     string().
 
 format_real_ip(Ip, InH) when is_tuple(Ip) ->
@@ -310,7 +311,7 @@ format_real_ip(HostName, InH) ->
     end.
 
 
--spec is_whitelisted_revproxy(ip_address()) -> boolean().
+-spec is_whitelisted_revproxy(inet:ip_address()) -> boolean().
 
 is_whitelisted_revproxy(Ip) ->
     RevWList = yaws_syslogger_app:get_param(parsed_revproxy_whitelist),

@@ -18,7 +18,8 @@
 %%====================================================================
 %% Public API.
 %%====================================================================
--spec parse_ip(string()) -> ip_address() | {ip_address(), ip_address()}.
+-spec parse_ip(string()) ->
+    inet:ip_address() | {inet:ip_address(), inet:ip_address()}.
 
 parse_ip(Str) ->
     case parse(Str) of
@@ -42,7 +43,8 @@ parse_ip(Str) ->
     end.
 
 
--spec match_ip(ip_address(), ip_address() | {ip_address(), ip_address()}) ->
+-spec match_ip(inet:ip_address(),
+               inet:ip_address() | {inet:ip_address(), inet:ip_address()}) ->
     boolean().
 
 match_ip({A,B,C,D}, {A,B,C,D}) ->
@@ -80,7 +82,7 @@ parse(_) ->
 
 
 %% ----
--spec ip_to_integer(string() | ip_address()) ->
+-spec ip_to_integer(string() | inet:ip_address()) ->
     {ipv4, 0..?MASK_IPV4} | {ipv6, 0..?MASK_IPV6}.
 
 ip_to_integer(Ip) when is_list(Ip) ->
@@ -117,7 +119,7 @@ ip_to_integer(_) ->
 
 
 %% ----
--spec integer_to_ip(ipv4 | ipv6, 0..?MASK_IPV6) -> ip_address().
+-spec integer_to_ip(ipv4 | ipv6, 0..?MASK_IPV6) -> inet:ip_address().
 
 integer_to_ip(ipv4, I) when is_integer(I), I =< ?MASK_IPV4 ->
     N1 =  I bsr 24,
@@ -158,7 +160,7 @@ netmask_to_integer(ipv6, Mask) ->
 
 
 %% ----
--spec is_greater_ip(ip_address(), ip_address()) -> boolean().
+-spec is_greater_ip(inet:ip_address(), inet:ip_address()) -> boolean().
 
 is_greater_ip({A,B,C,D1}, {A,B,C,D2}) when D1 < D2 ->
     false;
@@ -190,7 +192,7 @@ is_greater_ip({_,_,_,_,_,_,_,_}, {_,_,_,_,_,_,_,_}) ->
     true.
 
 
--spec is_lower_ip(ip_address(), ip_address()) -> boolean().
+-spec is_lower_ip(inet:ip_address(), inet:ip_address()) -> boolean().
 
 is_lower_ip(Ip1, Ip2) ->
     is_greater_ip(Ip2, Ip1).
