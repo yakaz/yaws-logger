@@ -1,3 +1,9 @@
+erlang-yaws-syslogger (0.4.0-2) experimental; urgency=low
+
+  * Recompile to support yaws-1.96
+
+ -- Christopher Faulet <christopher@yakaz.com>  Tue, 02 Apr 2013 14:03:12 +0200
+
 erlang-yaws-syslogger (0.4.0-1) experimental; urgency=low
 
   * Add a module to deal with ip addresses and ip ranges
