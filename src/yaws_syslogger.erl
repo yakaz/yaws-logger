@@ -314,7 +314,7 @@ format_real_ip(HostName, InH) ->
 -spec is_whitelisted_revproxy(inet:ip_address()) -> boolean().
 
 is_whitelisted_revproxy(Ip) ->
-    RevWList = yaws_syslogger_app:get_param(parsed_revproxy_whitelist),
+    RevWList = yaws_syslogger_app:get_parsed_revproxy_whitelist(),
     is_whitelisted_revproxy(Ip, RevWList).
 
 is_whitelisted_revproxy(_Ip, []) ->
