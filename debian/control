@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Christopher Faulet <christopher@yakaz.com>
 Uploaders: Jean-Sébastien Pédron <jean-sebastien@yakaz.com>
 Build-Depends: debhelper (>= 8), autotools-dev, erlang-yaws (>= 1.92),
- erlang-dev (>= 1:13.b.1-3)
+ erlang-dev (>= 1:13.b.1-3), erlang-tools
 Standards-Version: 3.9.1
 
 Package: erlang-yaws-syslogger
