@@ -2,7 +2,7 @@ dnl ------------------------------------------------------------------
 dnl Autoconf initialization.
 dnl ------------------------------------------------------------------
 
-AC_INIT([yaws_syslogger], [0.4.1])
+AC_INIT([yaws_syslogger], [0.4.2])
 
 AC_CONFIG_SRCDIR([src/yaws_syslogger_app.erl])
 AC_CONFIG_MACRO_DIR([m4])

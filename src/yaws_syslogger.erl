@@ -258,7 +258,8 @@ format_authlog(ServerName, Ip, Path, Item) ->
               {ok, User}       -> ["OK user=", User];
               403              -> ["403"];
               {401, Realm}     -> ["401 realm=", Realm];
-              {401, User, PWD} -> ["401 user=", User, " badpwd=", PWD]
+              {401, User, PWD} -> ["401 user=", User, " badpwd=", PWD];
+              Str              -> Str
           end,
     I = [IpStr, [$\s], format_now(now()), [$\s], ServerName, [$\s, $"], Path,
          [$",$\s], Msg, [$\s]],

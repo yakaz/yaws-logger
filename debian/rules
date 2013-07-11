@@ -15,7 +15,7 @@ endif
 
 
 %:
-	dh $@ --parallel --builddirectory=$(WORKDIR)
+	dh $@ --parallel --builddirectory=$(WORKDIR) --with autoreconf
 
 override_dh_auto_configure:
 	if [ -d $(WORKDIR) ]; then rm -fr $(WORKDIR); fi
