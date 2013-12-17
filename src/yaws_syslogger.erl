@@ -267,29 +267,34 @@ format_authlog(ServerName, Ip, Path, Item) ->
 
 
 %%====================================================================
--spec format_ip(inet:ip_address() | undefined | string()) -> string().
+-spec format_ip(inet:ip_address() | unknown | undefined | string()) -> string().
 
 format_ip(Ip) when is_tuple(Ip) ->
     inet_parse:ntoa(Ip);
+format_ip(unknown) ->
+    "0.0.0.0";
 format_ip(undefined) ->
     "0.0.0.0";
 format_ip(HostName) ->
     HostName.
 
 
--spec format_host(inet:ip_address() | undefined | string()) -> string().
+-spec format_host(inet:ip_address() | unknown | undefined | string()) -> string().
 
 format_host(Ip) when is_tuple(Ip); is_list(Ip) ->
     case inet:gethostbyaddr(Ip) of
         {ok, H} -> element(2, H);
         _       -> format_ip(Ip)
     end;
+format_host(unknown) ->
+    "unknown";
 format_host(undefined) ->
-    "0.0.0.0".
+    "unknown".
 
 
 %%====================================================================
--spec format_real_ip(inet:ip_address() | string(), #headers{}) ->
+-spec format_real_ip(inet:ip_address() | unknown | undefined | string(),
+                     #headers{}) ->
     string().
 
 format_real_ip(Ip, InH) when is_tuple(Ip) ->
@@ -302,6 +307,10 @@ format_real_ip(Ip, InH) when is_tuple(Ip) ->
         false ->
             inet_parse:ntoa(Ip)
     end;
+format_real_ip(unknown, _InH) ->
+    "0.0.0.0";
+format_real_ip(undefined, _InH) ->
+    "0.0.0.0";
 format_real_ip(HostName, InH) ->
     try
         Ip = yaws_syslogger_netutils:parse_ip(HostName),
