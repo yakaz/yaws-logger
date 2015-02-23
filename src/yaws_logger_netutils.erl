@@ -1,4 +1,29 @@
--module(yaws_syslogger_netutils).
+%--
+% Copyright (c) 2012-2015 Yakaz
+% All rights reserved.
+%
+% Redistribution and use in source and binary forms, with or without
+% modification, are permitted provided that the following conditions
+% are met:
+% 1. Redistributions of source code must retain the above copyright
+% notice, this list of conditions and the following disclaimer.
+% 2. Redistributions in binary form must reproduce the above copyright
+% notice, this list of conditions and the following disclaimer in the
+% documentation and/or other materials provided with the distribution.
+%
+% THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+% ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+% IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+% ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+% FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+% DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+% OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+% HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+% LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+% OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+% SUCH DAMAGE.
+
+-module(yaws_logger_netutils).
 
 
 %% API
@@ -43,6 +68,7 @@ parse_ip(Str) ->
     end.
 
 
+%% ----
 -spec match_ip(inet:ip_address(),
                inet:ip_address() | {inet:ip_address(), inet:ip_address()}) ->
     boolean().
@@ -59,16 +85,9 @@ match_ip(Ip, {Ip1, Ip2}) ->
 match_ip(_, _) ->
     false.
 
-
-
-
 %%====================================================================
 %% Internal functions
 %%====================================================================
--spec parse(string()) ->
-    {ipv4, 0..?MASK_IPV4} | {ipv4, 0..?MASK_IPV4, 0..?MAXBITS_IPV4} |
-    {ipv6, 0..?MASK_IPV6} | {ipv6, 0..?MASK_IPV6, 0..?MAXBITS_IPV6}.
-
 parse(Str) when is_list(Str) ->
     [Ip|Rest]   = string:tokens(Str, [$/]),
     {Type, Int} = ip_to_integer(Ip),
@@ -80,12 +99,8 @@ parse(Str) when is_list(Str) ->
 parse(_) ->
     throw({error, einval}).
 
-
 %% ----
--spec ip_to_integer(string() | inet:ip_address()) ->
-    {ipv4, 0..?MASK_IPV4} | {ipv6, 0..?MASK_IPV6}.
-
-ip_to_integer(Ip) when is_list(Ip) ->
+ip_to_integer(Ip) ->
     case inet_parse:ipv6_address(Ip) of
         {ok, {0,0,0,0,0,16#FFFF,N1,N2}} ->
             {ipv4, (N1 bsl 16) bor N2};
@@ -94,33 +109,9 @@ ip_to_integer(Ip) when is_list(Ip) ->
                  bor (N5 bsl 48) bor (N6 bsl 32) bor (N7 bsl 16) bor N8};
         {error, Reason} ->
             throw({error, Reason})
-    end;
-ip_to_integer({N1,N2,N3,N4}) ->
-    Int = (N1 bsl 24) bor (N2 bsl 16) bor (N3 bsl 8) bor N4,
-    if
-        Int < ?MASK_IPV4 -> {ipv4, Int};
-        true -> throw({error, einval})
-    end;
-ip_to_integer({0,0,0,0,0,16#FFFF,N1,N2}) ->
-    Int = (N1 bsl 16) bor N2,
-    if
-        Int < ?MASK_IPV4 -> {ipv4, Int};
-        true -> throw({error, einval})
-    end;
-ip_to_integer({N1,N2,N3,N4,N5,N6,N7,N8}) ->
-    Int = (N1 bsl 112) bor (N2 bsl 96) bor (N3 bsl 80) bor (N4 bsl 64) bor
-        (N5 bsl 48) bor (N6 bsl 32) bor (N7 bsl 16) bor N8,
-    if
-        Int < ?MASK_IPV6 -> {ipv6, Int};
-        true -> throw({error, einval})
-    end;
-ip_to_integer(_) ->
-    throw({error, einval}).
-
+    end.
 
 %% ----
--spec integer_to_ip(ipv4 | ipv6, 0..?MASK_IPV6) -> inet:ip_address().
-
 integer_to_ip(ipv4, I) when is_integer(I), I =< ?MASK_IPV4 ->
     N1 =  I bsr 24,
     N2 = (I band ((1 bsl 24) - 1)) bsr 16,
@@ -140,28 +131,19 @@ integer_to_ip(ipv6, I) when is_integer(I), I =< ?MASK_IPV6 ->
 integer_to_ip(_, _) ->
     throw({error, einval}).
 
-
 %% ----
--spec netmask_to_wildcard(ipv4 | ipv6, 0..?MAXBITS_IPV6) -> 0..?MASK_IPV6.
-
 netmask_to_wildcard(ipv4, Mask) ->
     (1 bsl (?MAXBITS_IPV4 - Mask) - 1);
 netmask_to_wildcard(ipv6, Mask) ->
     (1 bsl (?MAXBITS_IPV6 - Mask) - 1).
 
-
 %% ----
--spec netmask_to_integer(ipv4 | ipv6, 0..?MAXBITS_IPV6) -> 0..?MASK_IPV6.
-
 netmask_to_integer(ipv4, Mask) ->
     ?MASK_IPV4 bsr (?MAXBITS_IPV4 - Mask) bsl (?MAXBITS_IPV4 - Mask);
 netmask_to_integer(ipv6, Mask) ->
     ?MASK_IPV6 bsr (?MAXBITS_IPV6 - Mask) bsl (?MAXBITS_IPV6 - Mask).
 
-
 %% ----
--spec is_greater_ip(inet:ip_address(), inet:ip_address()) -> boolean().
-
 is_greater_ip({A,B,C,D1}, {A,B,C,D2}) when D1 < D2 ->
     false;
 is_greater_ip({A,B,C1,_}, {A,B,C2,_}) when C1 < C2 ->
@@ -191,8 +173,6 @@ is_greater_ip({A1,_,_,_,_,_,_,_}, {A2,_,_,_,_,_,_,_}) when A1 < A2 ->
 is_greater_ip({_,_,_,_,_,_,_,_}, {_,_,_,_,_,_,_,_}) ->
     true.
 
-
--spec is_lower_ip(inet:ip_address(), inet:ip_address()) -> boolean().
-
+%% ----
 is_lower_ip(Ip1, Ip2) ->
     is_greater_ip(Ip2, Ip1).

@@ -1,5 +1,7 @@
 .swp
 .*.swp
+*.Pbeam
+*.beam
 ac-aux/
 aclocal.m4
 autom4te.cache/
@@ -7,20 +9,15 @@ config.h*
 config.log*
 config.status*
 configure
-stamp*
+stamp-*
+.deps
+.rebar
 Makefile
 Makefile.in
 */Makefile
 */Makefile.in
-src/Emakefile
-src/Emakefile.in
-ebin/*.app
-ebin/*.app.in
-ebin/*.appup
-ebin/*.beam
-testsuite/etest
-testsuite/dialyzer
-
+ebin/yaws_logger.app
+ebin/yaws_logger.appup
 
 # Files produced by Debian package.
 build-stamp
@@ -29,5 +26,5 @@ debian/*.debhelper.log
 debian/*.substvars
 debian/build
 debian/files
-debian/yaws-syslogger
+debian/yaws_logger
 debian/*-stamp
