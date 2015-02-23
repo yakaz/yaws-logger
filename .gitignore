@@ -12,6 +12,7 @@ configure
 stamp-*
 .deps
 .rebar
+yaws_logger-*.tar.gz
 Makefile
 Makefile.in
 */Makefile
