@@ -154,33 +154,32 @@ dnl ------------------------------------------------------------------
 AC_ERLANG_CHECK_LIB([kernel],,   [AC_MSG_ERROR(["kernel" Erlang application not found.])])
 AC_ERLANG_CHECK_LIB([stdlib],,   [AC_MSG_ERROR(["stdlib" Erlang application not found.])])
 AC_ERLANG_CHECK_LIB([erts],,     [AC_MSG_ERROR(["erts" Erlang application not found.])])
-AC_ERLANG_CHECK_LIB([yaws],,     [AC_MSG_ERROR(["yaws" Erlang application not found.])])
 
-dnl dnl "yaws" install directory.
-dnl AC_ARG_WITH([yaws],
-dnl         AC_HELP_STRING([--with-yaws=PREFIX],
-dnl                        [prefix where the "yaws" Erlang application is installed (optional)]),
-dnl         with_yaws=${withval%/},
-dnl         with_yaws="")
+dnl "yaws" install directory.
+AC_ARG_WITH([yaws],
+        AC_HELP_STRING([--with-yaws=PREFIX],
+                       [prefix where the "yaws" Erlang application is installed (optional)]),
+        with_yaws=${withval%/},
+        with_yaws="")
 
-dnl ERL_LIBS_save=$ERL_LIBS
-dnl if test "x${with_yaws}" != "x"; then
-dnl         ERL_LIBS="${with_yaws}:${ERL_LIBS}"
-dnl fi
-dnl export ERL_LIBS
-dnl AC_ERLANG_CHECK_LIB([yaws],, [AC_MSG_ERROR(["yaws" Erlang application not found.
-dnl Provide yaws install path with --with-yaws.])])
-dnl ERL_LIBS=$ERL_LIBS_save
-dnl export ERL_LIBS
+ERL_LIBS_save=$ERL_LIBS
+if test "x${with_yaws}" != "x"; then
+        ERL_LIBS="${with_yaws}:${ERL_LIBS}"
+fi
+export ERL_LIBS
+AC_ERLANG_CHECK_LIB([yaws],, [AC_MSG_ERROR(["yaws" Erlang application not found.
+Provide yaws install path with --with-yaws.])])
+ERL_LIBS=$ERL_LIBS_save
+export ERL_LIBS
 
-dnl dnl Yaws 1.90 is required.
-dnl AX_COMPARE_VERSION([${ERLANG_LIB_VER_yaws}], [ge], [1.90],
-dnl     [is_yaws_190="yes"],
-dnl     [is_yaws_190="no"])
-dnl if test "x${is_yaws_190}" = "xno"; then
-dnl 	AC_MSG_ERROR([
-dnl Yaws 1.90 is required but only Yaws $ERLANG_LIB_VER_yaws was found!])
-dnl fi
+dnl Yaws 1.90 is required.
+AX_COMPARE_VERSION([${ERLANG_LIB_VER_yaws}], [ge], [1.90],
+    [is_yaws_190="yes"],
+    [is_yaws_190="no"])
+if test "x${is_yaws_190}" = "xno"; then
+	AC_MSG_ERROR([
+Yaws 1.90 is required but only Yaws $ERLANG_LIB_VER_yaws was found!])
+fi
 
 
 dnl ------------------------------------------------------------------
