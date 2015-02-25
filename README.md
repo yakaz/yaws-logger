@@ -51,6 +51,73 @@ TODO
 
 TODO
 
+### Predefined log formats
+
+**yaws-logger** defines 3 log formats that can be referenced in the loggers'
+configuration by a keyword instead of a format string:
+
+* **common**: [The Common Log Format (CLF)](http://en.wikipedia.org/wiki/Common_Log_Format).
+```bash
+"%h %l %u %t \"%r\" %s %b"
+```
+
+* **combined**: The extended/combined log format. Same as **common** but with
+the _Referer_ and the _User-agent_ in addition.
+```bash
+"%h %l %u %t \"%r\" %s %b \"%{Referer}i\" \"%{User-Agent}i\""
+```
+
+* **default**: Same as **combined** but with the time taken to serve the request
+(in microseconds) and the name of the server in addition.
+```bash
+"%h %l %u %t \"%r\" %s %b \"%{Referer}i\" \"%{User-Agent}i\" %D %v"
+```
+
+### Custom log formats
+
+Any literal or C-style control character is copied into the log
+messages. Literal quotes and backslashes should be escaped with backslashes.
+
+| Format String | Description
+| ------------- | -----------
+| %%            | The percent sign.
+| %a            | The remote IP-address or _0.0.0.0_ if undefined.
+| %B            | The size of the response's body.
+| %b            | The size of the response's body in CLF format, _i.e._ a '-' rather than a 0 when no bytes are sent.
+| %{Foobar}C 	| The contents of cookie `Foobar` in the request sent to the server.
+| %D            | The time taken to serve the request, in microseconds.
+| %H            | The request protocol, _.e.g._ `HTTP/1.1`.
+| %h            | The remote host or _unknown_ if undefined.
+| %{Foobar}i    | The contents of `Foobar:` header line in the request sent to the server.
+| %l            | The remote logname. This will always return a always '-'.
+| %m            | The request method.
+| %{Foobar}o    | The contents of `Foobar:` header line in the reply.
+| %P            | The erlang process ID that serviced the request.
+| %q            | The query string (prepended with a '?' if a query string exists, otherwise an empty string)
+| %r            | The First line of request.
+| %s            | The Response status code.
+| %T            | The time taken to serve the request, in seconds.
+| %t            | The time the request was received.
+| %U            | The URL path requested without the query string.
+| %u            | The remote user
+| %v            | The name of the server serving the request.
+
+You can restrict the printing of particular items depending of the HTTP status
+code of responses by placing a comma-separated list of status codes immediately
+following the '%'. For all codes not matching one in the list, a '-' is printed
+instead of the item. The status code list may be preceded by a '!' to indicate
+negation.
+
+For example:
+
+```bash
+# Logs the User-agent on 400 and 501 errors only.
+%400,501{User-agent}i
+
+# Logs the Referer on all requests that do not return one of the three specified codes.
+%!200,304,302{Referer}i
+```
+
 ### Exemples
 
 TODO
