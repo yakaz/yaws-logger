@@ -35,17 +35,23 @@
          parse_revproxy_whitelist/1,
          accesslog/4, authlog/2]).
 
--define(DEFAULT_FORMAT,
-        "%a %l %u %t \"%r\" %s %b \"%{Referer}i\" \"%{User-Agent}i\" %T %v").
+-define(COMMON_LOG_FORMAT,   "%h %l %u %t \"%r\" %s %b").
+-define(COMBINED_LOG_FORMAT, ?COMMON_LOG_FORMAT ++ " \"%{Referer}i\" \"%{User-Agent}i\"").
+-define(DEFAULT_FORMAT,      ?COMBINED_LOG_FORMAT ++ " %D %v").
+
 %%====================================================================
 %% API
 %%====================================================================
 -spec parse_accesslog_format(Format) -> ParsedFmt when
-      Format    :: default | list(),
+      Format    :: default | common | combined | list(),
       ParsedFmt :: [tuple()].
 
 parse_accesslog_format(default) ->
     parse_accesslog_format(?DEFAULT_FORMAT);
+parse_accesslog_format(common) ->
+    parse_accesslog_format(?COMMON_LOG_FORMAT);
+parse_accesslog_format(combined) ->
+    parse_accesslog_format(?COMBINED_LOG_FORMAT);
 parse_accesslog_format(Fmt) ->
     parse_accesslog_format(Fmt, 0, []).
 
@@ -111,31 +117,31 @@ parse_accesslog_format([], _, Tokens) ->
 parse_accesslog_format([$%,$%|Rest], Col, Tokens) ->
     parse_accesslog_format(Rest, Col+2, [{char, $%}|Tokens]);
 parse_accesslog_format([$%|Rest], Col, Tokens) ->
-    {Cond, Col1, Rest1} = parse_accesslog_cond(Rest, Col+1),
-    case Rest1 of
-        [$a|Rest2] -> parse_accesslog_format(Rest2, Col1+1, [{remote_ip,        Cond}|Tokens]);
-        [$B|Rest2] -> parse_accesslog_format(Rest2, Col1+1, [{response_length,  Cond}|Tokens]);
-        [$b|Rest2] -> parse_accesslog_format(Rest2, Col1+1, [{response_length,  Cond}|Tokens]);
-        [$D|Rest2] -> parse_accesslog_format(Rest2, Col1+1, [{ms_time,          Cond}|Tokens]);
-        [$H|Rest2] -> parse_accesslog_format(Rest2, Col1+1, [{request_protocol, Cond}|Tokens]);
-        [$h|Rest2] -> parse_accesslog_format(Rest2, Col1+1, [{remote_host,      Cond}|Tokens]);
-        [$l|Rest2] -> parse_accesslog_format(Rest2, Col1+1, [{remote_name,      Cond}|Tokens]);
-        [$m|Rest2] -> parse_accesslog_format(Rest2, Col1+1, [{request_method,   Cond}|Tokens]);
-        [$p|Rest2] -> parse_accesslog_format(Rest2, Col1+1, [{pid,              Cond}|Tokens]);
-        [$q|Rest2] -> parse_accesslog_format(Rest2, Col1+1, [{query_string,     Cond}|Tokens]);
-        [$r|Rest2] -> parse_accesslog_format(Rest2, Col1+1, [{request,          Cond}|Tokens]);
-        [$s|Rest2] -> parse_accesslog_format(Rest2, Col1+1, [{status,           Cond}|Tokens]);
-        [$t|Rest2] -> parse_accesslog_format(Rest2, Col1+1, [{date,             Cond}|Tokens]);
-        [$T|Rest2] -> parse_accesslog_format(Rest2, Col1+1, [{time,             Cond}|Tokens]);
-        [$u|Rest2] -> parse_accesslog_format(Rest2, Col1+1, [{user,             Cond}|Tokens]);
-        [$U|Rest2] -> parse_accesslog_format(Rest2, Col1+1, [{url_path,         Cond}|Tokens]);
-        [$v|Rest2] -> parse_accesslog_format(Rest2, Col1+1, [{servername,       Cond}|Tokens]);
-        [${|Rest2] ->
-            {Token, Col2, Rest3} = parse_accesslog_var(Rest2, Col1+1),
-            parse_accesslog_format(Rest3, Col2, [{Token, Cond}|Tokens]);
-        [C|_] -> throw({error, Col1, "unknown log directive %" ++ [C]});
-        []    -> throw({error, Col1, "premature end log format"})
-    end;
+    {Cond,  Col1, Rest1} = parse_accesslog_cond(Rest, Col+1),
+    {Token, Col2, Rest2} =
+        case Rest1 of
+            [$a|R] -> {remote_ip,           Col1+1, R};
+            [$B|R] -> {response_length,     Col1+1, R};
+            [$b|R] -> {clf_response_length, Col1+1, R};
+            [$D|R] -> {ms_time,             Col1+1, R};
+            [$H|R] -> {request_protocol,    Col1+1, R};
+            [$h|R] -> {remote_host,         Col1+1, R};
+            [$l|R] -> {remote_name,         Col1+1, R};
+            [$m|R] -> {request_method,      Col1+1, R};
+            [$P|R] -> {pid,                 Col1+1, R};
+            [$q|R] -> {query_string,        Col1+1, R};
+            [$r|R] -> {request,             Col1+1, R};
+            [$s|R] -> {status,              Col1+1, R};
+            [$t|R] -> {date,                Col1+1, R};
+            [$T|R] -> {time,                Col1+1, R};
+            [$u|R] -> {user,                Col1+1, R};
+            [$U|R] -> {url_path,            Col1+1, R};
+            [$v|R] -> {servername,          Col1+1, R};
+            [${|R] -> parse_accesslog_var(R, Col1+1);
+            [C|_]  -> throw({error, Col1, "unknown log directive %" ++ [C]});
+            []     -> throw({error, Col1, "premature end log format"})
+        end,
+    parse_accesslog_format(Rest2, Col2, [{Token, Cond}|Tokens]);
 parse_accesslog_format([C|Rest], Col, Tokens) ->
     parse_accesslog_format(Rest, Col+1, [{char, C}|Tokens]).
 
@@ -197,137 +203,144 @@ format_accesslog([{remote_ip, Cond}|Rest], ServerName, RevPx,
                  {Ip,_,_,OutH,_}=Data, Msg) ->
     Msg1 = case check_cond(Cond, OutH#outh.status) of
                true  -> [format_ip(Ip)|Msg];
-               false -> ["-"|Msg]
+               false -> [$-|Msg]
            end,
     format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
 format_accesslog([{real_remote_ip, Cond}|Rest], ServerName, RevPx,
                  {Ip,_,InH,OutH,_}=Data, Msg) ->
     Msg1 = case check_cond(Cond, OutH#outh.status) of
                true  -> [format_real_ip(Ip,InH,RevPx)|Msg];
-               false -> ["-"|Msg]
+               false -> [$-|Msg]
+           end,
+    format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
+format_accesslog([{clf_response_length, Cond}|Rest], ServerName, RevPx,
+                 {_,Req,_,OutH,_}=Data, Msg) ->
+    Msg1 = case check_cond(Cond, OutH#outh.status) of
+               true  -> [get_clf_response_length(Req, OutH)|Msg];
+               false -> [$-|Msg]
            end,
     format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
 format_accesslog([{response_length, Cond}|Rest], ServerName, RevPx,
                  {_,Req,_,OutH,_}=Data, Msg) ->
     Msg1 = case check_cond(Cond, OutH#outh.status) of
                true  -> [get_response_length(Req, OutH)|Msg];
-               false -> ["-"|Msg]
+               false -> [$-|Msg]
            end,
     format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
 format_accesslog([{ms_time, Cond}|Rest], ServerName, RevPx,
                  {_,_,_,OutH,Time}=Data, Msg) ->
     Msg1 = case check_cond(Cond, OutH#outh.status) of
                true  -> [integer_to_list(Time)|Msg];
-               false -> ["-"|Msg]
+               false -> [$-|Msg]
            end,
     format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
 format_accesslog([{request_protocol, Cond}|Rest], ServerName, RevPx,
                  {_,Req,_,OutH,_}=Data, Msg) ->
     Msg1 = case check_cond(Cond, OutH#outh.status) of
                true  -> [get_http_version(Req)|Msg];
-               false -> ["-"|Msg]
+               false -> [$-|Msg]
            end,
     format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
 format_accesslog([{remote_host, Cond}|Rest], ServerName, RevPx,
                  {Ip,_,_,OutH,_}=Data, Msg) ->
     Msg1 = case check_cond(Cond, OutH#outh.status) of
                true  -> [format_host(Ip)|Msg];
-               false -> ["-"|Msg]
+               false -> [$-|Msg]
            end,
     format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
 format_accesslog([{remote_name, _Cond}|Rest], ServerName, RevPx,
                  Data, Msg) ->
-    Msg1 = ["-"|Msg],
+    Msg1 = [$-|Msg],
     format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
 format_accesslog([{request_method, Cond}|Rest], ServerName, RevPx,
                  {_,Req,_,OutH,_}=Data, Msg) ->
     Msg1 = case check_cond(Cond, OutH#outh.status) of
                true  -> [get_request_method(Req)|Msg];
-               false -> ["-"|Msg]
+               false -> [$-|Msg]
            end,
     format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
 format_accesslog([{pid, Cond}|Rest], ServerName, RevPx,
                  {_,_,_,OutH,_}=Data, Msg) ->
     Msg1 = case check_cond(Cond, OutH#outh.status) of
                true  -> [pid_to_list(self())|Msg];
-               false -> ["-"|Msg]
+               false -> [$-|Msg]
            end,
     format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
 format_accesslog([{query_string, Cond}|Rest], ServerName, RevPx,
                  {_,Req,_,OutH,_}=Data, Msg) ->
     Msg1 = case check_cond(Cond, OutH#outh.status) of
                true  -> [get_query_string(Req)|Msg];
-               false -> ["-"|Msg]
+               false -> [$-|Msg]
            end,
     format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
 format_accesslog([{request, Cond}|Rest], ServerName, RevPx,
                  {_,Req,_,OutH,_}=Data, Msg) ->
     Msg1 = case check_cond(Cond, OutH#outh.status) of
                true  -> [get_request(Req)|Msg];
-               false -> ["-"|Msg]
+               false -> [$-|Msg]
            end,
     format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
 format_accesslog([{status, Cond}|Rest], ServerName, RevPx,
                  {_,_,_,OutH,_}=Data, Msg) ->
     Msg1 = case check_cond(Cond, OutH#outh.status) of
                true  -> [get_request_status(OutH)|Msg];
-               false -> ["-"|Msg]
+               false -> [$-|Msg]
            end,
     format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
 format_accesslog([{date, Cond}|Rest], ServerName, RevPx,
                  {_,_,_,OutH,_}=Data, Msg) ->
     Msg1 = case check_cond(Cond, OutH#outh.status) of
                true  -> [format_ts(os:timestamp())|Msg];
-               false -> ["-"|Msg]
+               false -> [$-|Msg]
            end,
     format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
 format_accesslog([{time, Cond}|Rest], ServerName, RevPx,
                  {_,_,_,OutH,Time}=Data, Msg) ->
     Msg1 = case check_cond(Cond, OutH#outh.status) of
                true  -> [integer_to_list(Time div 1000000)|Msg];
-               false -> ["-"|Msg]
+               false -> [$-|Msg]
            end,
     format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
 format_accesslog([{user, Cond}|Rest], ServerName, RevPx,
                  {_,_,InH,OutH,_}=Data, Msg) ->
     Msg1 = case check_cond(Cond, OutH#outh.status) of
                true  -> [get_auth_user(InH)|Msg];
-               false -> ["-"|Msg]
+               false -> [$-|Msg]
            end,
     format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
 format_accesslog([{url_path, Cond}|Rest], ServerName, RevPx,
                  {_,Req,_,OutH,_}=Data, Msg) ->
     Msg1 = case check_cond(Cond, OutH#outh.status) of
                true  -> [get_request_url(Req)|Msg];
-               false -> ["-"|Msg]
+               false -> [$-|Msg]
            end,
     format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
 format_accesslog([{servername, Cond}|Rest], ServerName, RevPx,
                  {_,_,_,OutH,_}=Data, Msg) ->
     Msg1 = case check_cond(Cond, OutH#outh.status) of
                true  -> [ServerName|Msg];
-               false -> ["-"|Msg]
+               false -> [$-|Msg]
            end,
     format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
 format_accesslog([{{cookie, Name}, Cond}|Rest], ServerName, RevPx,
                  {_,_,InH,OutH,_}=Data, Msg) ->
     Msg1 = case check_cond(Cond, OutH#outh.status) of
                true  -> [get_cookie_val(Name, InH)|Msg];
-               false -> ["-"|Msg]
+               false -> [$-|Msg]
            end,
     format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
 format_accesslog([{{request_header, Name}, Cond}|Rest], ServerName, RevPx,
                  {_,_,InH,OutH,_}=Data, Msg) ->
     Msg1 = case check_cond(Cond, OutH#outh.status) of
                true  -> [get_request_header(Name, InH)|Msg];
-               false -> ["-"|Msg]
+               false -> [$-|Msg]
            end,
     format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
 format_accesslog([{{response_header, Name}, Cond}|Rest], ServerName, RevPx,
                  {_,_,_,OutH,_}=Data, Msg) ->
     Msg1 = case check_cond(Cond, OutH#outh.status) of
                true  -> [get_response_header(Name, OutH)|Msg];
-               false -> ["-"|Msg]
+               false -> [$-|Msg]
            end,
     format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
 format_accesslog([{char, C}|Rest], ServerName, RevPx, Data, Msg) ->
@@ -403,9 +416,9 @@ is_whitelisted_revproxy(Ip, [IpRange|Rest]) ->
 format_ts(TS) ->
     LocalTime = calendar:now_to_local_time(TS),
     {{Year, Month, Day}, {Hour, Min, Sec}} = LocalTime,
-    ["[",fill_zero(Day,2),"/",yaws:month(Month),"/",integer_to_list(Year),
-     ":",fill_zero(Hour,2),":",fill_zero(Min,2),":",fill_zero(Sec,2),
-     " ",zone(LocalTime),"]"].
+    [$[, fill_zero(Day, 2), $/, yaws:month(Month), $/, integer_to_list(Year),
+     $:, fill_zero(Hour, 2), $:, fill_zero(Min, 2), $:, fill_zero(Sec, 2),
+     $\s, zone(LocalTime), $]].
 
 zone(LocalTime) ->
     UTime    = erlang:universaltime(),
@@ -432,7 +445,7 @@ left_fill(N, Width, Fill) ->
 %% ----
 get_request_status(OutH) ->
     case OutH#outh.status of
-        undefined -> "-";
+        undefined -> $-;
         S         -> integer_to_list(S)
     end.
 
@@ -455,7 +468,8 @@ get_query_string(Req) ->
         {abs_path, P} ->
             case catch yaws_api:url_decode_q_split(P) of
                 {'EXIT', _}  -> [];
-                {_, QString} -> QString
+                {_, []}      -> [];
+                {_, QString} -> [$?, QString]
             end;
         _ ->
             []
@@ -485,7 +499,7 @@ get_http_version(Req) ->
 get_auth_user(InH) ->
     case InH#headers.authorization of
         {U, _P, _OStr} when is_list(U) -> U;
-        _                              -> "-"
+        _                              -> $-
     end.
 
 get_cookie_val(Name, InH) ->
@@ -517,6 +531,9 @@ get_request_header(Name, InH) ->
             header_to_string(InH#headers.user_agent);
         "accept-ranges" ->
             header_to_string(InH#headers.accept_ranges);
+        "cookie" ->
+            string:join([header_to_string(C) || C <- InH#headers.cookie],
+                        ";");
         "keep-alive" ->
             header_to_string(InH#headers.keep_alive);
         "location" ->
@@ -530,7 +547,7 @@ get_request_header(Name, InH) ->
         "authorization" ->
             case InH#headers.authorization of
                 {_, _, Orig} -> header_to_string(Orig);
-                _            -> "-"
+                _            -> $-
             end;
         "transfer-encoding" ->
             header_to_string(InH#headers.transfer_encoding);
@@ -539,19 +556,25 @@ get_request_header(Name, InH) ->
         _ ->
             case lists:keysearch(Name, 3, InH#headers.other) of
                 {value, {http_header, _, _, _, Val}} -> header_to_string(Val);
-                false                                -> "-"
+                false                                -> $-
             end
+    end.
+
+get_clf_response_length(Req, OutH) ->
+    case get_response_length(Req, OutH) of
+        $0 -> $-;
+        L   -> L
     end.
 
 get_response_length(Req, OutH) ->
     case Req#http_request.method of
         'HEAD' ->
-            "-";
+            $0;
         _ ->
             case OutH#outh.contlen of
                 undefined ->
                     case OutH#outh.act_contlen of
-                        undefined -> "-";
+                        undefined -> $0;
                         L         -> integer_to_list(L)
                     end;
                 L ->
@@ -562,45 +585,54 @@ get_response_length(Req, OutH) ->
 get_response_header(Name, OutH) ->
     case Name of
         "status" ->
-            header_to_string(OutH#outh.status);
+            integer_to_list(OutH#outh.status);
         "connection" ->
-            header_to_string(OutH#outh.connection);
+            header_to_string(Name, OutH#outh.connection);
         "server" ->
-            header_to_string(OutH#outh.server);
+            header_to_string(Name, OutH#outh.server);
         "location" ->
-            header_to_string(OutH#outh.location);
+            header_to_string(Name, OutH#outh.location);
         "cache-control" ->
-            header_to_string(OutH#outh.cache_control);
+            header_to_string(Name, OutH#outh.cache_control);
         "expires" ->
-            header_to_string(OutH#outh.expires);
+            header_to_string(Name, OutH#outh.expires);
         "date" ->
-            header_to_string(OutH#outh.date);
+            header_to_string(Name, OutH#outh.date);
         "allow" ->
-            header_to_string(OutH#outh.allow);
+            header_to_string(Name, OutH#outh.allow);
         "last-modified" ->
-            header_to_string(OutH#outh.last_modified);
+            header_to_string(Name, OutH#outh.last_modified);
         "etag" ->
-            header_to_string(OutH#outh.etag);
+            header_to_string(Name, OutH#outh.etag);
         "content-range" ->
-            header_to_string(OutH#outh.content_range);
+            header_to_string(Name, OutH#outh.content_range);
         "content-length" ->
-            header_to_string(OutH#outh.content_length);
+            header_to_string(Name, OutH#outh.content_length);
         "content-type" ->
-            header_to_string(OutH#outh.content_type);
+            header_to_string(Name, OutH#outh.content_type);
         "content-encoding" ->
-            header_to_string(OutH#outh.content_encoding);
+            header_to_string(Name, OutH#outh.content_encoding);
         "transfer-encoding" ->
-            header_to_string(OutH#outh.transfer_encoding);
+            header_to_string(Name, OutH#outh.transfer_encoding);
         "www-authenticate" ->
-            header_to_string(OutH#outh.www_authenticate);
+            header_to_string(Name, OutH#outh.www_authenticate);
         _ ->
-            "-"
+            header_to_string(Name, OutH#outh.other)
     end.
 
-header_to_string(undefined) -> "-";
-header_to_string(N) when is_integer(N) -> N;
-header_to_string(A) when is_atom(A)    -> A;
+header_to_string(undefined)            -> $-;
+header_to_string(N) when is_integer(N) -> integer_to_list(N);
+header_to_string(A) when is_atom(A)    -> atom_to_list(A);
 header_to_string(S) when is_list(S)    -> S.
+
+header_to_string(_, undefined) ->
+    $-;
+header_to_string(Name, Header) ->
+    RE = [Name, "\s?[^:]*:\s?(.*)\r\n"],
+    case re:run(Header, RE, [caseless, {capture, all_but_first, list}]) of
+        {match, [Value]} -> Value;
+        _                -> $-
+    end.
 
 no_ctl([H|T]) when H < 32 ->
     no_ctl(T);

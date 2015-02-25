@@ -89,7 +89,10 @@ get_param(Param, Default) ->
 -spec is_param_valid(atom(), any()) -> boolean().
 
 is_param_valid(default_accesslog_format, Fmt) ->
-    (Fmt == default orelse is_list(Fmt));
+    (Fmt == default  orelse
+     Fmt == common   orelse
+     Fmt == combined orelse
+     is_list(Fmt));
 is_param_valid(revproxy_whitelist, L) ->
     lists:all(fun(Str) -> io_lib:printable_list(Str) end, L);
 is_param_valid(loggers, L) when is_list(L) ->
@@ -142,7 +145,10 @@ is_logger_valid(Id, Backend, [{type, Type}|Rest]) ->
             false
     end;
 is_logger_valid(Id, Backend, [{accesslog_format, Fmt}|Rest]) ->
-    case (Fmt == default orelse is_list(Fmt)) of
+    case (Fmt == default  orelse
+          Fmt == common   orelse
+          Fmt == combined orelse
+          is_list(Fmt)) of
         true ->
             is_logger_valid(Id, Backend, Rest);
         false ->
