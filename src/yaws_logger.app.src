@@ -13,5 +13,10 @@
                   kernel,
                   stdlib
                  ]},
-  {mod, {yaws_logger_app, []}}
+  {mod, {yaws_logger_app, []}},
+  {env, [
+         {default_accesslog_format, default},
+         {revproxy_whitelist,       []},
+         {loggers,                  []}
+        ]}
  ]}.
