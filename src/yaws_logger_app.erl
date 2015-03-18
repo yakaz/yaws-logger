@@ -50,7 +50,7 @@
 %% application(3erl) callbacks.
 -export([
          start/2,
-         pre_stop/1,
+         prep_stop/1,
          stop/1,
          config_change/3
         ]).
@@ -295,7 +295,7 @@ start(_, _) ->
     end.
 
 %% ----
-pre_stop(State) ->
+prep_stop(State) ->
     State.
 
 %% ----
