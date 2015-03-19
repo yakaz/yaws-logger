@@ -19,6 +19,14 @@ Makefile.in
 */Makefile.in
 ebin/yaws_logger.app
 ebin/yaws_logger.appup
+logs
+testsuite/logs
+testsuite/*.log
+testsuite/analyze_coverdata.escript
+testsuite/cover_to_html.sh
+testsuite/run_common_test
+testsuite/yaws_logger.coverspec
+
 
 # Files produced by Debian package.
 build-stamp

@@ -207,7 +207,7 @@ is_logger_valid(Id, yaws_logger_sysloggerl, [{syslog_loglevel, L}|Rest]) ->
 
 %% Check lager logger options
 is_logger_valid(Id, yaws_logger_lager, [{lager_loglevel, L}|Rest]) ->
-    case lists:member(L, lager_utils:levels()) of
+    case lists:member(L, lager_util:levels()) of
         true ->
             is_logger_valid(Id, yaws_logger_lager, Rest);
         false ->
