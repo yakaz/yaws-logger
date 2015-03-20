@@ -34,15 +34,15 @@
 %% yaws_logger callbacks
 -export([open_log/3, close_log/3, wrap_log/4, write_log/4]).
 
--record(logger, {id                 :: atom(),
-                 type               :: any | access | auth,
-                 backend            :: atom(),
-                 options            :: list(),
-                 state              :: any(),
-                 accesslog_format   :: [tuple()],
-                 revproxy_whitelist :: list()}).
+-record(handler, {id                 :: atom(),
+                  type               :: any | access | auth,
+                  backend            :: atom(),
+                  options            :: list(),
+                  state              :: any(),
+                  accesslog_format   :: [tuple()],
+                  revproxy_whitelist :: list()}).
 
--record(state, {loggers :: [#logger{}]}).
+-record(state, {handlers :: [#handler{}]}).
 
 %% ===================================================================
 %% yaws_logger callbacks.
@@ -59,15 +59,15 @@ behaviour_info(_Other) ->
 open_log(ServerName, Type, Dir) ->
     try
         ensure_started(),
-        Loggers = get_loggers(ServerName, Type, Dir),
-        case Loggers of
+        Handlers = get_handlers(ServerName, Type, Dir),
+        case Handlers of
             [] ->
-                ?WARN("No logger found for to log ~p messages for server ~p~n",
+                ?WARN("No handler found for to log ~p messages for server ~p~n",
                       [Type, ServerName]);
             _ ->
                 ok
         end,
-        {true, #state{loggers=Loggers}}
+        {true, #state{handlers=Handlers}}
     catch
         _:Error ->
             ?ERROR("Failed to start yaws_logger for the vhost ~p: ~p~n"
@@ -77,7 +77,7 @@ open_log(ServerName, Type, Dir) ->
     end.
 %% ----
 close_log(_ServerName, _Type, State) ->
-    [(L#logger.backend):close_log(L#logger.state) || L <- State#state.loggers].
+    [(H#handler.backend):close_log(H#handler.state) || H <- State#state.handlers].
 
 %% ----
 wrap_log(_ServerName, _Type, State, _Sz) ->
@@ -86,23 +86,23 @@ wrap_log(_ServerName, _Type, State, _Sz) ->
 %% ----
 write_log(ServerName, access, State, Data) ->
     [if
-         L#logger.type == any; L#logger.type == access ->
-             Msg = yaws_logger_formatter:accesslog(L#logger.accesslog_format,
+         H#handler.type == any; H#handler.type == access ->
+             Msg = yaws_logger_formatter:accesslog(H#handler.accesslog_format,
                                                    ServerName,
-                                                   L#logger.revproxy_whitelist,
+                                                   H#handler.revproxy_whitelist,
                                                    Data),
-             (L#logger.backend):write(Msg, L#logger.state);
+             (H#handler.backend):write(Msg, H#handler.state);
          true ->
              ok
-     end  || L <- State#state.loggers];
+     end  || H <- State#state.handlers];
 write_log(ServerName, auth, State, Data) ->
     [if
-         L#logger.type == any; L#logger.type == auth ->
+         H#handler.type == any; H#handler.type == auth ->
              Msg = yaws_logger_formatter:authlog(ServerName, Data),
-             (L#logger.backend):write(Msg, L#logger.state);
+             (H#handler.backend):write(Msg, H#handler.state);
          true ->
              ok
-     end  || L <- State#state.loggers];
+     end  || H <- State#state.handlers];
 write_log(_, _, _, _) ->
     ok.
 
@@ -124,35 +124,35 @@ ensure_started() ->
 
 
 %% ----
-get_loggers(ServerName, Type, Dir) ->
-    Loggers = yaws_logger_app:get_param(loggers),
-    filter_loggers(ServerName, Type, Dir, Loggers).
+get_handlers(ServerName, Type, Dir) ->
+    Handlers = yaws_logger_app:get_param(handlers),
+    filter_handlers(ServerName, Type, Dir, Handlers).
 
-filter_loggers(_, _, _, []) ->
+filter_handlers(_, _, _, []) ->
     [];
-filter_loggers(ServerName, Type, Dir, [{Id,Config}|Rest]) ->
-    RE         = get_vhost(Config),
-    LoggerType = get_type(Config),
+filter_handlers(ServerName, Type, Dir, [{Id,Config}|Rest]) ->
+    RE          = get_vhost(Config),
+    HandlerType = get_type(Config),
 
     case re:run(ServerName, RE, [{capture, none}, caseless, unicode]) of
-        match when LoggerType == Type; LoggerType == any ->
+        match when HandlerType == Type; HandlerType == any ->
             Backend     = get_backend(Config),
             Options     = get_backend_options(Config),
             AccssLogFmt = get_accesslog_format(Config),
             RevProxies  = get_revproxy_whitelist(Config),
             State       = Backend:open_log(Id, ServerName, Type, Dir, Options),
 
-            Logger = #logger{id                 = Id,
-                             type               = LoggerType,
-                             backend            = Backend,
-                             state              = State,
-                             options            = Options,
-                             accesslog_format   = AccssLogFmt,
-                             revproxy_whitelist = RevProxies},
+            Handler = #handler{id                 = Id,
+                               type               = HandlerType,
+                               backend            = Backend,
+                               state              = State,
+                               options            = Options,
+                               accesslog_format   = AccssLogFmt,
+                               revproxy_whitelist = RevProxies},
 
-            [Logger|filter_loggers(ServerName, Type, Dir, Rest)];
+            [Handler|filter_handlers(ServerName, Type, Dir, Rest)];
         _ ->
-            filter_loggers(ServerName, Type, Dir, Rest)
+            filter_handlers(ServerName, Type, Dir, Rest)
     end.
 
 get_vhost(Config) ->

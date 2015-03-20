@@ -64,7 +64,7 @@ params_list() ->
     [
      default_accesslog_format,
      revproxy_whitelist,
-     loggers
+     handlers
     ].
 
 %% ----
@@ -84,140 +84,140 @@ is_param_valid(default_accesslog_format, Fmt) ->
      is_list(Fmt));
 is_param_valid(revproxy_whitelist, L) ->
     lists:all(fun(Str) -> io_lib:printable_list(Str) end, L);
-is_param_valid(loggers, L) when is_list(L) ->
+is_param_valid(handlers, L) when is_list(L) ->
     case (length(L) == sets:size(sets:from_list(L))) of
         true ->
             lists:all(fun({Id,C}) ->
-                              (is_atom(Id) andalso is_logger_valid(Id,C))
+                              (is_atom(Id) andalso is_handler_valid(Id,C))
                       end, L);
         false ->
-            ?ERROR("duplicate entry found in the logger list~n"),
+            ?ERROR("duplicate entry found in the handler list~n"),
             false
     end;
 is_param_valid(_, _) ->
     false.
 
-is_logger_valid(Id, Config) ->
+is_handler_valid(Id, Config) ->
     case lists:keyfind(backend, 1, Config) of
         {backend, B} ->
             case lists:member(B, backends()) of
                 true ->
-                    is_logger_valid(Id, B, Config);
+                    is_handler_valid(Id, B, Config);
                 false ->
-                    ?ERROR("Logger '~p': unsupported backend ~p~n", [Id, B]),
+                    ?ERROR("Handler '~p': unsupported backend ~p~n", [Id, B]),
                     false
             end;
         false ->
-            ?ERROR("Logger '~p': No backend found~n", [Id]),
+            ?ERROR("Handler '~p': No backend found~n", [Id]),
             false
     end.
 
-%% Check generic logger options
-is_logger_valid(_, _, []) ->
+%% Check generic handler options
+is_handler_valid(_, _, []) ->
     true;
-is_logger_valid(Id, Backend, [{backend, Backend}|Rest]) ->
-    is_logger_valid(Id, Backend, Rest);
-is_logger_valid(Id, Backend, [{vhost, H}|Rest]) ->
+is_handler_valid(Id, Backend, [{backend, Backend}|Rest]) ->
+    is_handler_valid(Id, Backend, Rest);
+is_handler_valid(Id, Backend, [{vhost, H}|Rest]) ->
     case is_list(H) of
         true ->
-            is_logger_valid(Id, Backend, Rest);
+            is_handler_valid(Id, Backend, Rest);
         false ->
-            ?ERROR("Logger '~p': invalid vhost ~p~n", [Id, H]),
+            ?ERROR("Handler '~p': invalid vhost ~p~n", [Id, H]),
             false
     end;
-is_logger_valid(Id, Backend, [{type, Type}|Rest]) ->
+is_handler_valid(Id, Backend, [{type, Type}|Rest]) ->
     case lists:member(Type, types()) of
         true ->
-            is_logger_valid(Id, Backend, Rest);
+            is_handler_valid(Id, Backend, Rest);
         false ->
-            ?ERROR("Logger '~p': unsupported log type ~p~n", [Id, Type]),
+            ?ERROR("Handler '~p': unsupported log type ~p~n", [Id, Type]),
             false
     end;
-is_logger_valid(Id, Backend, [{accesslog_format, Fmt}|Rest]) ->
+is_handler_valid(Id, Backend, [{accesslog_format, Fmt}|Rest]) ->
     case (Fmt == default  orelse
           Fmt == common   orelse
           Fmt == combined orelse
           is_list(Fmt)) of
         true ->
-            is_logger_valid(Id, Backend, Rest);
+            is_handler_valid(Id, Backend, Rest);
         false ->
-            ?ERROR("Logger '~p': bad access format ~p~n", [Id, Fmt]),
+            ?ERROR("Handler '~p': bad access format ~p~n", [Id, Fmt]),
             false
     end;
 
-%% Check file logger options
-is_logger_valid(Id, yaws_logger_file, [{file, F}|Rest]) ->
+%% Check file handler options
+is_handler_valid(Id, yaws_logger_file, [{file, F}|Rest]) ->
     case is_list(F) of
         true ->
-            is_logger_valid(Id, yaws_logger_file, Rest);
+            is_handler_valid(Id, yaws_logger_file, Rest);
         false ->
-            ?ERROR("Logger '~p': invalid file ~p~n", [Id, F]),
+            ?ERROR("Handler '~p': invalid file ~p~n", [Id, F]),
             false
     end;
-is_logger_valid(Id, yaws_logger_file, [{size, Sz}|Rest]) ->
+is_handler_valid(Id, yaws_logger_file, [{size, Sz}|Rest]) ->
     case ((is_integer(Sz) andalso Sz > 0) orelse Sz == infinity) of
         true ->
-            is_logger_valid(Id, yaws_logger_file, Rest);
+            is_handler_valid(Id, yaws_logger_file, Rest);
         false ->
-            ?ERROR("Logger '~p': invalid file size ~p~n", [Id, Sz]),
+            ?ERROR("Handler '~p': invalid file size ~p~n", [Id, Sz]),
             false
     end;
-is_logger_valid(Id, yaws_logger_file, [{rotate, N}|Rest]) ->
+is_handler_valid(Id, yaws_logger_file, [{rotate, N}|Rest]) ->
     case (is_integer(N) andalso N >= 0) of
         true ->
-            is_logger_valid(Id, yaws_logger_file, Rest);
+            is_handler_valid(Id, yaws_logger_file, Rest);
         false ->
-            ?ERROR("Logger '~p': invalid rotate value ~p~n", [Id, N]),
+            ?ERROR("Handler '~p': invalid rotate value ~p~n", [Id, N]),
             false
     end;
-is_logger_valid(Id, yaws_logger_file, [{sync, B}|Rest]) ->
+is_handler_valid(Id, yaws_logger_file, [{sync, B}|Rest]) ->
     case is_boolean(B) of
         true ->
-            is_logger_valid(Id, yaws_logger_file, Rest);
+            is_handler_valid(Id, yaws_logger_file, Rest);
         false ->
-            ?ERROR("Logger '~p': invalid sync flag ~p~n", [Id, B]),
+            ?ERROR("Handler '~p': invalid sync flag ~p~n", [Id, B]),
             false
     end;
 
-%% Check sysloggerl logger options
-is_logger_valid(Id, yaws_logger_sysloggerl, [{syslog_ident, Ident}|Rest]) ->
+%% Check sysloggerl handler options
+is_handler_valid(Id, yaws_logger_sysloggerl, [{syslog_ident, Ident}|Rest]) ->
     case io_lib:printable_list(Ident) of
         true ->
-            is_logger_valid(Id, yaws_logger_sysloggerl, Rest);
+            is_handler_valid(Id, yaws_logger_sysloggerl, Rest);
         false ->
-            ?ERROR("Logger '~p': invalid syslog ident ~p~n", [Id, Ident]),
+            ?ERROR("Handler '~p': invalid syslog ident ~p~n", [Id, Ident]),
             false
     end;
-is_logger_valid(Id, yaws_logger_sysloggerl, [{syslog_facility, F}|Rest]) ->
+is_handler_valid(Id, yaws_logger_sysloggerl, [{syslog_facility, F}|Rest]) ->
     case syslog:is_facility_valid(F) of
         true ->
-            is_logger_valid(Id, yaws_logger_sysloggerl, Rest);
+            is_handler_valid(Id, yaws_logger_sysloggerl, Rest);
         false ->
-            ?ERROR("Logger '~p': invalid syslog facility ~p~n", [Id, F]),
+            ?ERROR("Handler '~p': invalid syslog facility ~p~n", [Id, F]),
             false
     end;
-is_logger_valid(Id, yaws_logger_sysloggerl, [{syslog_loglevel, L}|Rest]) ->
+is_handler_valid(Id, yaws_logger_sysloggerl, [{syslog_loglevel, L}|Rest]) ->
     case syslog:is_loglevel_valid(L) of
         true ->
-            is_logger_valid(Id, yaws_logger_sysloggerl, Rest);
+            is_handler_valid(Id, yaws_logger_sysloggerl, Rest);
         false ->
-            ?ERROR("Logger '~p': invalid syslog level ~p~n", [Id, L]),
+            ?ERROR("Handler '~p': invalid syslog level ~p~n", [Id, L]),
             false
     end;
 
-%% Check lager logger options
-is_logger_valid(Id, yaws_logger_lager, [{lager_loglevel, L}|Rest]) ->
+%% Check lager handler options
+is_handler_valid(Id, yaws_logger_lager, [{lager_loglevel, L}|Rest]) ->
     case lists:member(L, lager_util:levels()) of
         true ->
-            is_logger_valid(Id, yaws_logger_lager, Rest);
+            is_handler_valid(Id, yaws_logger_lager, Rest);
         false ->
-            ?ERROR("Logger '~p': invalid lager level ~p~n", [Id, L]),
+            ?ERROR("Handler '~p': invalid lager level ~p~n", [Id, L]),
             false
     end;
 
 %% Remaining parameters are invalid
-is_logger_valid(Id, _Backend, [Param|_]) ->
-    ?ERROR("Logger '~p': bad parameter ~p~n", [Id, Param]),
+is_handler_valid(Id, _Backend, [Param|_]) ->
+    ?ERROR("Handler '~p': bad parameter ~p~n", [Id, Param]),
     false.
 
 
@@ -271,7 +271,7 @@ check_params() ->
 
 log_param_errors([]) ->
     ok;
-log_param_errors([loggers = Param | Rest]) ->
+log_param_errors([handlers = Param | Rest]) ->
     ?WARN("invalid value for \"~s\": ~p.~n", [Param, get_param(Param)]),
     log_param_errors(Rest);
 log_param_errors([Param | Rest]) ->

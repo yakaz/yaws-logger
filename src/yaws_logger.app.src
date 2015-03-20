@@ -17,6 +17,6 @@
   {env, [
          {default_accesslog_format, default},
          {revproxy_whitelist,       []},
-         {loggers,                  []}
+         {handlers,                 []}
         ]}
  ]}.
