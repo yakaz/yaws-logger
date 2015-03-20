@@ -192,6 +192,8 @@ parse_accesslog_var([$},$o|Rest], Col, Var) ->
     {{response_header, string:to_lower(lists:reverse(Var))}, Col+2, Rest};
 parse_accesslog_var([$r,$e,$a,$l,$},$a|Rest], Col, []) ->
     {real_remote_ip, Col+6, Rest};
+parse_accesslog_var([$r,$e,$a,$l,$},$h|Rest], Col, []) ->
+    {real_remote_host, Col+6, Rest};
 parse_accesslog_var([C|Rest], Col, Var) ->
     parse_accesslog_var(Rest, Col+1, [C|Var]).
 
@@ -245,6 +247,13 @@ format_accesslog([{remote_host, Cond}|Rest], ServerName, RevPx,
                  {Ip,_,_,OutH,_}=Data, Msg) ->
     Msg1 = case check_cond(Cond, OutH#outh.status) of
                true  -> [format_host(Ip)|Msg];
+               false -> [$-|Msg]
+           end,
+    format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
+format_accesslog([{real_remote_host, Cond}|Rest], ServerName, RevPx,
+                 {Ip,_,InH,OutH,_}=Data, Msg) ->
+    Msg1 = case check_cond(Cond, OutH#outh.status) of
+               true  -> [format_real_host(Ip,InH,RevPx)|Msg];
                false -> [$-|Msg]
            end,
     format_accesslog(Rest, ServerName, RevPx, Data, Msg1);
@@ -367,7 +376,6 @@ format_ip(HostName) ->
     HostName.
 
 
-%% ----
 format_host(Ip) when is_tuple(Ip); is_list(Ip) ->
     case inet:gethostbyaddr(Ip) of
         {ok, H} -> element(2, H);
@@ -398,6 +406,29 @@ format_real_ip(HostName, InH, RevPx) ->
     try
         Ip = yaws_logger_netutils:parse_ip(HostName),
         format_real_ip(Ip, InH, RevPx)
+    catch
+        _:_ ->
+            HostName
+    end.
+
+format_real_host(Ip, InH, RevPx) when is_tuple(Ip) ->
+    case is_whitelisted_revproxy(Ip, RevPx) of
+        true ->
+            case yaws:split_sep(InH#headers.x_forwarded_for, $,) of
+                [FirstIp|_Proxies] -> format_host(FirstIp);
+                []                 -> format_host(Ip)
+            end;
+        false ->
+            format_host(Ip)
+    end;
+format_real_host(unknown, _InH, _RevPx) ->
+    "unknown";
+format_real_host(undefined, _InH, _RevPx) ->
+    "unknown";
+format_real_host(HostName, InH, RevPx) ->
+    try
+        Ip = yaws_logger_netutils:parse_ip(HostName),
+        format_real_host(Ip, InH, RevPx)
     catch
         _:_ ->
             HostName
