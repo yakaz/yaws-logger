@@ -79,7 +79,7 @@ check_default_param(default_accesslog_format) ->
 check_default_param(revproxy_whitelist) ->
     ?assertEqual([], yaws_logger_app:get_param(revproxy_whitelist));
 check_default_param(handlers) ->
-    ?assertEqual([], yaws_logger_app:get_param(handler)).
+    ?assertEqual([], yaws_logger_app:get_param(handlers)).
 
 
 

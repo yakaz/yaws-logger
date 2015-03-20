@@ -20,6 +20,7 @@ Makefile.in
 ebin/yaws_logger.app
 ebin/yaws_logger.appup
 logs
+deps
 testsuite/logs
 testsuite/*.log
 testsuite/analyze_coverdata.escript
